@@ -124,7 +124,7 @@
             Dim oDTInvGrpData As DataTable = Nothing
             Dim sCardCode As String = String.Empty
 
-            oDTInvGrpData = odvInvView.Table.DefaultView.ToTable(True, "F2")
+            oDTInvGrpData = odvInvView.Table.DefaultView.ToTable(True, "F3")
 
             For intRow As Integer = 0 To oDTInvGrpData.Rows.Count - 1
                 If Not (oDTInvGrpData.Rows(intRow).Item(0).ToString.Trim() = String.Empty Or oDTInvGrpData.Rows(intRow).Item(0).ToString.ToUpper.Trim = "CLINIC CODE") Then
@@ -132,7 +132,7 @@
                     sCardCode = oDTInvGrpData.Rows(intRow).Item(0).ToString.Trim()
 
                     If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Customer Code Before Filtering. CardCode : " & sCardCode, sFuncName)
-                    odvInvView.RowFilter = "F2 = '" & sCardCode & "'"
+                    odvInvView.RowFilter = "F3 = '" & sCardCode & "'"
 
                     If bTransStarted = False Then
                         If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Calling StartTransaction()", sFuncName)
@@ -154,11 +154,11 @@
             '**********************GROUP EXCEL DATAS BASED ON VENDOR CODE - A/P CREDIT MEMO*******************
             Dim oDTCrdtMemoGrpData As DataTable = Nothing
 
-            oDTCrdtMemoGrpData = odvCrdtView.Table.DefaultView.ToTable(True, "F2")
+            oDTCrdtMemoGrpData = odvCrdtView.Table.DefaultView.ToTable(True, "F3")
 
             For intRow As Integer = 0 To oDTCrdtMemoGrpData.Rows.Count - 1
                 If Not (oDTCrdtMemoGrpData.Rows(intRow).Item(0).ToString.Trim() = String.Empty Or oDTCrdtMemoGrpData.Rows(intRow).Item(0).ToString.ToUpper.Trim = "CLINIC CODE") Then
-                    odvCrdtView.RowFilter = "F2 = '" & oDTCrdtMemoGrpData.Rows(intRow).Item(0).ToString & "'"
+                    odvCrdtView.RowFilter = "F3 = '" & oDTCrdtMemoGrpData.Rows(intRow).Item(0).ToString & "'"
 
                     If bTransStarted = False Then
 
