@@ -4,6 +4,7 @@
     Private dtCostCenter As DataTable
     Private dtItemCode As DataTable
     Private dtAcctCode As DataTable
+    Private dtVendRefNo As DataTable
 
     Public Function ProcessAPInvToProvider(ByVal file As System.IO.FileInfo, ByVal odv As DataView, ByRef sErrDesc As String) As Long
 
@@ -225,6 +226,8 @@
         Dim bLineAdded As Boolean = False
         Dim iRetcode, iErrCode As Integer
         Dim sCardName As String = String.Empty
+        Dim sNumAtCard As String = String.Empty
+        Dim sSql As String = String.Empty
 
         Try
 
@@ -254,11 +257,28 @@
 
             End If
 
+            sNumAtCard = odv(0)(0).ToString.Trim
+
+            sSql = "SELECT DISTINCT ""NumAtCard"" FROM ""OPCH"" WHERE IFNULL(""NumAtCard"",'') <> '' AND ""CardCode"" = '" & sCardCode & "'"
+            If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("EXECUTING SQL :" & sSql, sFuncName)
+            dtVendRefNo = ExecuteQueryReturnDataTable(sSql, p_oCompany.CompanyDB)
+
+            If Not (sNumAtCard = String.Empty) Then
+                dtVendRefNo.DefaultView.RowFilter = "NumAtCard = '" & sNumAtCard & "'"
+                If dtVendRefNo.DefaultView.Count = 0 Then
+                    oDoc.NumAtCard = sNumAtCard
+                Else
+                    sErrDesc = "Vendor Ref No :: " & sNumAtCard & " already exist in SAP."
+                    Call WriteToLogFile(sErrDesc, sFuncName)
+                    Throw New ArgumentException(sErrDesc)
+                End If
+            End If
+
             oDoc.CardCode = sCardCode
             oDoc.DocDate = CDate(sBatchPeriod)
             oDoc.Comments = sBatchNo
             oDoc.JournalMemo = sFullBatchPeriod
-            oDoc.NumAtCard = odv(0)(0).ToString.Trim
+            oDoc.NumAtCard = sNumAtCard
             oDoc.UserFields.Fields.Item("U_AI_APARUploadName").Value = sFileName
             oDoc.UserFields.Fields.Item("U_AI_InvRefNo").Value = sCardName
 
@@ -392,6 +412,8 @@
         Dim bLineAdded As Boolean = False
         Dim iRetcode, iErrCode As Integer
         Dim sCardName As String = String.Empty
+        Dim sNumAtCard As String = String.Empty
+        Dim sSql As String = String.Empty
 
         Try
 
@@ -417,11 +439,28 @@
                 If CheckBP(sFullCardCode, sCardCode, sCardName, "V", sErrDesc) <> RTN_SUCCESS Then Throw New ArgumentException(sErrDesc)
             End If
 
+            sNumAtCard = odv(0)(0).ToString.Trim
+
+            sSql = "SELECT DISTINCT ""NumAtCard"" FROM ""ORPC"" WHERE IFNULL(""NumAtCard"",'') <> '' AND ""CardCode"" = '" & sCardCode & "'"
+            If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("EXECUTING SQL :" & sSql, sFuncName)
+            dtVendRefNo = ExecuteQueryReturnDataTable(sSql, p_oCompany.CompanyDB)
+
+            If Not (sNumAtCard = String.Empty) Then
+                dtVendRefNo.DefaultView.RowFilter = "NumAtCard = '" & sNumAtCard & "'"
+                If dtVendRefNo.DefaultView.Count = 0 Then
+                    oDoc.NumAtCard = sNumAtCard
+                Else
+                    sErrDesc = "Vendor Ref No :: " & sNumAtCard & " already exist in SAP."
+                    Call WriteToLogFile(sErrDesc, sFuncName)
+                    Throw New ArgumentException(sErrDesc)
+                End If
+            End If
+
             oDoc.CardCode = sCardCode
             oDoc.DocDate = CDate(sBatchPeriod)
             oDoc.Comments = sBatchNo
             oDoc.JournalMemo = sFullBatchPeriod
-            oDoc.NumAtCard = odv(0)(0).ToString.Trim
+            oDoc.NumAtCard = sNumAtCard
             If Not (odv(0)(10).ToString.Trim = String.Empty) Then
                 oDoc.Comments = sBatchNo & "-" & odv(0)(10).ToString.Trim
             End If

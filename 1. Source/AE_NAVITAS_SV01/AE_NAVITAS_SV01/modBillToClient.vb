@@ -220,9 +220,9 @@
                     oDoc.JournalMemo = sFullBatchPeriod
 
                     If dGrossTot > 0.0 Then
-                        sSql = "SELECT DISTINCT ""NumAtCard"" FROM ""OINV"" "
+                        sSql = "SELECT DISTINCT ""NumAtCard"" FROM ""OINV""  WHERE IFNULL(""NumAtCard"",'') <> ''"
                     Else
-                        sSql = "SELECT DISTINCT ""NumAtCard"" FROM ""ORIN"" "
+                        sSql = "SELECT DISTINCT ""NumAtCard"" FROM ""ORIN""  WHERE IFNULL(""NumAtCard"",'') <> ''"
                     End If
                     If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("EXECUTING SQL :" & sSql, sFuncName)
                     dtCusRefNo = ExecuteQueryReturnDataTable(sSql, p_oCompany.CompanyDB)
