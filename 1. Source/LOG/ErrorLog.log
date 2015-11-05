@@ -1,0 +1,5 @@
+[10/12/2015 10:57:55][                SendEmail_MBMS] The SMTP server requires a secure connection or the client was not authenticated. The server response was: 5.5.1 Authentication Required. Learn more at
+[10/12/2015 10:57:55][                SendEmail_MBMS] Failed sending email to :  jeevas@abeo-electra.com;srinivasanm@abeo-electra.com
+[10/12/2015 10:57:55][         EmailTemplate_Error()] The SMTP server requires a secure connection or the client was not authenticated. The server response was: 5.5.1 Authentication Required. Learn more at
+[10/12/2015 10:57:55][        ProcessAPInvToProvider] ERROR [42S02] [SAP AG][LIBODBCHDB32 DLL][HDBODBC32] Base table or view not found;259 invalid table name:  Could not find table/view @AI_TB01_COMPANYDATA in schema SBODEMOUS: line 1 col 15 (at pos 14)
+[10/12/2015 10:57:55][                   UploadFiles] ERROR [42S02] [SAP AG][LIBODBCHDB32 DLL][HDBODBC32] Base table or view not found;259 invalid table name:  Could not find table/view @AI_TB01_COMPANYDATA in schema SBODEMOUS: line 1 col 15 (at pos 14)

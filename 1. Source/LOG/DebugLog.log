@@ -1,0 +1,36 @@
+[10/12/2015 10:57:44][    Get Company Initialization] Completed with Success
+[10/12/2015 10:57:44][                       Start()] calling ReadExcel()
+[10/12/2015 10:57:44][                   UploadFiles] Starting Upload funciton
+[10/12/2015 10:57:44][                   UploadFiles] File Name is: IHP_AP_TEST.XLS
+[10/12/2015 10:57:44][                   UploadFiles] Calling IsXLBookOpen()
+[10/12/2015 10:57:44][                  IsXLBookOpen] Starting Function
+[10/12/2015 10:57:50][                  IsXLBookOpen] Completed with SUCCESS
+[10/12/2015 10:57:50][                   UploadFiles] Read AP Invoice to Dataview
+[10/12/2015 10:57:50][          GetDataViewFromExcel] Starting Function
+[10/12/2015 10:57:52][          GetDataViewFromExcel] Completed With SUCCESS
+[10/12/2015 10:57:52][                   UploadFiles] Calling ExecuteBilltoClient()
+[10/12/2015 10:57:52][        ProcessAPInvToProvider] Calling ConnectToTargetCompany()
+[10/12/2015 10:57:52][      ConnectToTargetCompany()] Starting function
+[10/12/2015 10:57:52][      ConnectToTargetCompany()] Executing SQLSELECT * FROM "@AI_TB01_COMPANYDATA"  WHERE "Code" = 'IHP_TEST'
+[10/12/2015 10:57:53][               ExecuteSQLQuery] ExecuteSQL Query Error
+[10/12/2015 10:57:53][      ConnectToTargetCompany()] Calling EmailTemplate_GeneralError()
+[10/12/2015 10:57:53][         EmailTemplate_Error()] Starting Function
+[10/12/2015 10:57:53][         EmailTemplate_Error()] Building email message body steps .... 
+[10/12/2015 10:57:53][         EmailTemplate_Error()] Calling SendMail
+[10/12/2015 10:57:53][                SendEmail_MBMS] Sarting function
+[10/12/2015 10:57:53][                SendEmail_MBMS] Setting SMTP properties
+[10/12/2015 10:57:53][                SendEmail_MBMS] Calling Function CreateDefaultMailMessage()
+[10/12/2015 10:57:53][      CreateDefaultMailMessage] Sarting function
+[10/12/2015 10:57:53][      CreateDefaultMailMessage] Assigning Email Properties..
+[10/12/2015 10:57:53][      CreateDefaultMailMessage] Adding Email Address:  jeevas@abeo-electra.com
+[10/12/2015 10:57:53][      CreateDefaultMailMessage] Adding Email Address:  srinivasanm@abeo-electra.com
+[10/12/2015 10:57:53][      CreateDefaultMailMessage] Completed Successfully..
+[10/12/2015 10:57:53][                SendEmail_MBMS] Sending Email Message
+[10/12/2015 10:57:53][                SendEmail_MBMS] Sending Email Messages to : jeevas@abeo-electra.com;srinivasanm@abeo-electra.com
+[10/12/2015 10:57:55][                SendEmail_MBMS] Function completed with Error
+[10/12/2015 10:57:55][         EmailTemplate_Error()] Completed with ERROR
+[10/12/2015 10:57:55][      ConnectToTargetCompany()] Completed with ERROR
+[10/12/2015 10:57:55][        ProcessAPInvToProvider] Completed with ERROR
+[10/12/2015 10:57:55][                   UploadFiles] Error in Uplodiang AR file.
+[10/12/2015 10:57:55][                       Start()] Completed with SUCCESS
+[10/12/2015 10:57:55][                   Main Method] Completed with success
