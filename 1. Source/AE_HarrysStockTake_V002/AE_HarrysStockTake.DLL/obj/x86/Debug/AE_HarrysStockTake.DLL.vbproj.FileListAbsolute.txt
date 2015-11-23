@@ -1,0 +1,11 @@
+F:\Projects\Harrys\Source Code\AE_HarrysStockTake_V002\AE_HarrysStockTake.DLL\obj\x86\Debug\Interop.SAPbobsCOM.dll
+F:\Projects\Harrys\Source Code\AE_HarrysStockTake_V002\AE_HarrysStockTake.DLL\obj\x86\Debug\AE_HarrysStockTake.DLL.vbproj.ResolveComReference.cache
+F:\Projects\Harrys\Source Code\AE_HarrysStockTake_V002\AE_HarrysStockTake.DLL\obj\x86\Debug\AE_HarrysStockTake.DLL.Resources.resources
+F:\Projects\Harrys\Source Code\AE_HarrysStockTake_V002\AE_HarrysStockTake.DLL\obj\x86\Debug\AE_HarrysStockTake.DLL.vbproj.GenerateResource.Cache
+F:\Projects\Harrys\Source Code\AE_HarrysStockTake_V002\AE_HarrysStockTake.DLL\bin\Debug\AE_HarrysStockTake.DLL.dll
+F:\Projects\Harrys\Source Code\AE_HarrysStockTake_V002\AE_HarrysStockTake.DLL\bin\Debug\AE_HarrysStockTake.DLL.pdb
+F:\Projects\Harrys\Source Code\AE_HarrysStockTake_V002\AE_HarrysStockTake.DLL\bin\Debug\AE_HarrysStockTake.DLL.xml
+F:\Projects\Harrys\Source Code\AE_HarrysStockTake_V002\AE_HarrysStockTake.DLL\bin\Debug\Interop.SAPbobsCOM.dll
+F:\Projects\Harrys\Source Code\AE_HarrysStockTake_V002\AE_HarrysStockTake.DLL\obj\x86\Debug\AE_HarrysStockTake.DLL.dll
+F:\Projects\Harrys\Source Code\AE_HarrysStockTake_V002\AE_HarrysStockTake.DLL\obj\x86\Debug\AE_HarrysStockTake.DLL.xml
+F:\Projects\Harrys\Source Code\AE_HarrysStockTake_V002\AE_HarrysStockTake.DLL\obj\x86\Debug\AE_HarrysStockTake.DLL.pdb
