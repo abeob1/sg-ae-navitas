@@ -1,11 +1,9 @@
 ﻿Module modReimburseToMember
-
     Private dtBP As DataTable
     Private dtProject As DataTable
     Private dtItemCode As DataTable
     Private dtAcctCode As DataTable
     Private dtHouseBnkAct As DataTable
-    Private dtFileName As DataTable
 
     Public Function ProcessReimbToMember(ByVal file As System.IO.FileInfo, ByVal odv As DataView, ByRef sErrDesc As String) As Long
 
@@ -174,7 +172,7 @@
                     If CreateOutGoingPayment_Cheque(oDVChkDetl, file.Name, sDBCode, sBatchNo, sBatchPeriod, sFullBatchPeriod, sErrDesc) <> RTN_SUCCESS Then Throw New ArgumentException(sErrDesc)
                 End If
             End If
-
+          
             ''*********************CREATING OUTGOING PAYMENT FOR CPF ITEMS*******************
             If oDVCPFDetl.Count > 0 Then
                 If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Splitting Dataview based on Payment Mode - CPF", sFuncName)
@@ -265,28 +263,15 @@
         Dim sAddress As String = String.Empty
         Dim sAcctCode As String = String.Empty
         Dim sCardCode As String = String.Empty
-        Dim sSql As String = String.Empty
 
         Try
-
-            sSql = "SELECT DISTINCT ""U_AI_APARUploadName"" FROM ""OVPM"" WHERE IFNULL(""U_AI_APARUploadName"",'') <> ''"
-            If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("EXECUTING SQL :" & sSql, sFuncName)
-            dtFileName = ExecuteQueryReturnDataTable(sSql, p_oCompany.CompanyDB)
-
-            dtFileName.DefaultView.RowFilter = "U_AI_APARUploadName = '" & sFileName & "'"
-            If dtFileName.DefaultView.Count > 0 Then
-                sErrDesc = "Interface file ::" & sFileName & " has already been uploaded"
-                Call WriteToLogFile(sErrDesc, sFuncName)
-                Throw New ArgumentException(sErrDesc)
-            End If
-
             If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Starting Function", sFuncName)
 
             Dim oPayments As SAPbobsCOM.IPayments
             oPayments = p_oCompany.GetBusinessObject(SAPbobsCOM.BoObjectTypes.oVendorPayments)
             oPayments.DocType = SAPbobsCOM.BoRcptTypes.rAccount
 
-            sCardCode = odv(0)(1).ToString.Trim()
+            sCardCode = odv(0)(3).ToString.Trim()
             'sCardName = odv(0)(0).ToString.Trim()
             'sAddress = odv(0)(1).ToString.Trim()
 
@@ -354,7 +339,16 @@
             Next
 
             If dTotalAmt > 0.0 Then
-                sTrnsAcct = GetBankTrnsAcct(sDBCode)
+                'sTrnsAcct = GetBankTrnsAcct(sDBCode)
+                If Not sCardCode = String.Empty Then
+                    sTrnsAcct = GetHouseBankAccout_GIRO(sCardCode, p_oCompany.CompanyDB)
+                    If sTrnsAcct = String.Empty Then
+                        sTrnsAcct = GetBankTrnsAcct(sDBCode)
+                    End If
+                Else
+                    sTrnsAcct = GetBankTrnsAcct(sDBCode)
+                End If
+
                 oPayments.TransferAccount = sTrnsAcct
                 oPayments.TransferDate = CDate(sBatchPeriod)
                 oPayments.TransferSum = dTotalAmt
@@ -406,17 +400,6 @@
         Dim sSql As String = String.Empty
 
         Try
-            sSql = "SELECT DISTINCT ""U_AI_APARUploadName"" FROM ""OVPM"" WHERE IFNULL(""U_AI_APARUploadName"",'') <> ''"
-            If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("EXECUTING SQL :" & sSql, sFuncName)
-            dtFileName = ExecuteQueryReturnDataTable(sSql, p_oCompany.CompanyDB)
-
-            dtFileName.DefaultView.RowFilter = "U_AI_APARUploadName = '" & sFileName & "'"
-            If dtFileName.DefaultView.Count > 0 Then
-                sErrDesc = "Interface file ::" & sFileName & " has already been uploaded"
-                Call WriteToLogFile(sErrDesc, sFuncName)
-                Throw New ArgumentException(sErrDesc)
-            End If
-
             If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Starting Function", sFuncName)
 
             Dim oPayments As SAPbobsCOM.IPayments
@@ -464,46 +447,28 @@
                     oPayments.AccountPayments.GrossAmount = CDbl(odv(i)(6).ToString.Trim)
 
                     sBankCode = GetBankCode(sDBCode)
-                    If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Calling GetBankCode() " & sBankCode, sFuncName)
-
                     sBankCntryCode = GetCountryCode(sDBCode)
-                    If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Calling GetCountryCode() " & sBankCntryCode, sFuncName)
-
                     sChkGLAcct = GetCheckGLAcct(sDBCode)
-                    If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Calling  GetCheckGLAcct()" & sChkGLAcct, sFuncName)
-
-                    If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("CardCode : " & sCardCode & "Config Code :" & p_oCompDef.sCaiCancerCode, sFuncName)
-
                     If Not sCardCode = String.Empty Then
-                        If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("cardcode is not empty ", sFuncName)
                         If sCardCode.Trim.ToLower = p_oCompDef.sCaiCancerCode.ToLower Then
-                            If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Cardcode equal", sFuncName)
                             sChkAcct = p_oCompDef.sCaiCancerBankAct
-                            If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("CheckAccount : " & sChkAcct, sFuncName)
+                            sChkGLAcct = p_oCompDef.sCaiaCancerGLCode
                         Else
-                            If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Calling  GetHouseBankAccout()", sFuncName)
                             sChkAcct = GetHouseBankAccout(sCardCode, p_oCompany.CompanyDB)
-                            If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Calling  GetHouseBankAccout()" & sChkAcct, sFuncName)
-
                             If sChkAcct = String.Empty Then
                                 sChkAcct = GetBankAcct(sDBCode)
-                                If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Calling GetBankAcct()" & sChkAcct, sFuncName)
                             End If
                         End If
                     Else
-                        If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("CardCode is empty", sFuncName)
                         sChkAcct = GetBankAcct(sDBCode)
-                        If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Calling GetBankAcct()" & sChkAcct, sFuncName)
                     End If
 
 
                     oPayments.Checks.CountryCode = sBankCntryCode
                     oPayments.Checks.BankCode = sBankCode
                     oPayments.Checks.AccounttNum = sChkAcct
-                    If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Check Amount" & odv(i)(6).ToString.Trim(), sFuncName)
                     oPayments.Checks.CheckSum = CDbl(odv(i)(6).ToString.Trim)
                     oPayments.Checks.CheckAccount = sChkGLAcct
-                    If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Check Number" & odv(i)(8).ToString.Trim(), sFuncName)
                     oPayments.Checks.CheckNumber = odv(i)(8).ToString.Trim
                     oPayments.Checks.DueDate = CDate(sBatchPeriod)
                     oPayments.CashSum = 0
@@ -551,20 +516,8 @@
         Dim sCardName As String = String.Empty
         Dim sAddress As String = String.Empty
         Dim sAcctCode As String = String.Empty
-        Dim sSql As String = String.Empty
 
         Try
-            sSql = "SELECT DISTINCT ""U_AI_APARUploadName"" FROM ""OVPM"" WHERE IFNULL(""U_AI_APARUploadName"",'') <> ''"
-            If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("EXECUTING SQL :" & sSql, sFuncName)
-            dtFileName = ExecuteQueryReturnDataTable(sSql, p_oCompany.CompanyDB)
-
-            dtFileName.DefaultView.RowFilter = "U_AI_APARUploadName = '" & sFileName & "'"
-            If dtFileName.DefaultView.Count > 0 Then
-                sErrDesc = "Interface file ::" & sFileName & " has already been uploaded"
-                Call WriteToLogFile(sErrDesc, sFuncName)
-                Throw New ArgumentException(sErrDesc)
-            End If
-
             If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Starting Function", sFuncName)
 
             Dim oPayments As SAPbobsCOM.IPayments

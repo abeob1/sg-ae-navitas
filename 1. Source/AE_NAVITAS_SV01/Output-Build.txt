@@ -1,0 +1,3 @@
+﻿------ Build started: Project: AE_NAVITAS_SV01, Configuration: Debug x86 ------
+  AE_NAVITAS_SV01 -> C:\Abeo Projects\Navitas\Source 30092015\AE_NAVITAS_SV01\AE_NAVITAS_SV01\bin\Debug\AE_NAVITAS_SV01.exe
+========== Build: 1 succeeded or up-to-date, 0 failed, 0 skipped ==========

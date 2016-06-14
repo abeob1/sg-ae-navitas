@@ -1,9 +1,7 @@
 ﻿Module modPaymentToProvider
-
     Private dtBP As DataTable
     Private dtProject As DataTable
     Private dtAcctCode As DataTable
-    Private dtFileName As DataTable
 
     Public Function ProcessPayToProvider(ByVal file As System.IO.FileInfo, ByVal odv As DataView, ByRef sErrDesc As String) As Long
 
@@ -31,7 +29,7 @@
                 If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("EXECUTING  SQL :" & sSQL, sFuncName)
                 dtAcctCode = ExecuteQueryReturnDataTable(sSQL, p_oCompany.CompanyDB)
 
-                sSQL = "SELECT ""CardCode"" FROM ""OCRD"""
+                sSQL = "SELECT UPPER(""CardCode"") ""CardCode"",""CardCode"" ""ACardCode"" FROM ""OCRD"""
                 If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("EXECUTING SQL :" & sSQL, sFuncName)
                 dtBP = ExecuteQueryReturnDataTable(sSQL, p_oCompany.CompanyDB)
 
@@ -142,7 +140,7 @@
                     End If
 
                     If bTransStarted = True Then
-                        If CreateOutGoingPayment_GIRO(oDVGIRODetl, file.Name, sDBCode, sBatchNo, sBatchPeriod, sFullBatchPeriod, sErrDesc) <> RTN_SUCCESS Then Throw New ArgumentException(sErrDesc)
+                        If CreateOutGoingPayment_GIRO(oDVGIRODetl, file.Name, sDBCode, sBatchNo, sBatchPeriod,sFullBatchPeriod, sErrDesc) <> RTN_SUCCESS Then Throw New ArgumentException(sErrDesc)
                     End If
 
                 End If
@@ -244,19 +242,8 @@
         Dim sCardName As String = String.Empty
         Dim oRecordSet As SAPbobsCOM.Recordset
         Dim oRecordSet1 As SAPbobsCOM.Recordset
-        Dim sSql As String = String.Empty
 
         Try
-            sSql = "SELECT DISTINCT ""U_AI_APARUploadName"" FROM ""OVPM"" WHERE IFNULL(""U_AI_APARUploadName"",'') <> ''"
-            If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("EXECUTING SQL :" & sSql, sFuncName)
-            dtFileName = ExecuteQueryReturnDataTable(sSql, p_oCompany.CompanyDB)
-
-            dtFileName.DefaultView.RowFilter = "U_AI_APARUploadName = '" & sFileName & "'"
-            If dtFileName.DefaultView.Count > 0 Then
-                sErrDesc = "Interface file ::" & sFileName & " has already been uploaded"
-                Call WriteToLogFile(sErrDesc, sFuncName)
-                Throw New ArgumentException(sErrDesc)
-            End If
 
             If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Starting Function", sFuncName)
 
@@ -270,24 +257,28 @@
             If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("CardCode Length is " & sFullCardCode.Length, sFuncName)
 
             If sFullCardCode.Length > 15 Then
-                sCardCode = sFullCardCode.Substring(0, 15)
+                sCardCode = sFullCardCode.Substring(0, 15).ToUpper()
             Else
-                sCardCode = sFullCardCode
+                sCardCode = sFullCardCode.ToUpper()
             End If
 
             sCardName = odv(0)(0).ToString.Trim()
+            
+            Dim sCardCode_Upper As String = sCardCode.ToUpper()
 
-            dtBP.DefaultView.RowFilter = "CardCode = '" & sCardCode & "'"
+            dtBP.DefaultView.RowFilter = "CardCode = '" & sCardCode_Upper & "'"
             If dtBP.DefaultView.Count = 0 Then
                 If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Calling CheckBP", sFuncName)
                 If CheckBP(sFullCardCode, sCardCode, sCardName, "V", sErrDesc) <> RTN_SUCCESS Then Throw New ArgumentException(sErrDesc)
                 If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Calling Create_OutgoingPayment", sFuncName)
                 If Create_OutgoingPayment(odv, sFileName, sDBCode, sBatchNo, sBatchPeriod, "GIRO", sFullBatchPeriod, sErrDesc) <> RTN_SUCCESS Then Throw New ArgumentException(sErrDesc)
                 Return RTN_SUCCESS
+            Else
+                sCardCode = dtBP.DefaultView.Item(0)(1).ToString().Trim()
             End If
 
             oPayments.CardCode = sCardCode
-            '' oPayments.CardName = sCardName
+            oPayments.CardName = sCardName
 
             oPayments.DocDate = CDate(sBatchPeriod)
             oPayments.CounterReference = odv(0)(9).ToString.Trim
@@ -304,17 +295,7 @@
                     Else
                         dReimbCol = 0.0
                     End If
-                    'If Not (odv(i)(5).ToString.Trim = String.Empty) Then
-                    '    dTPACol = odv(i)(5).ToString.Trim
-                    'Else
-                    '    dTPACol = 0.0
-                    'End If
-                    'If Not (odv(i)(6).ToString.Trim = String.Empty) Then
-                    '    dGSTCol = odv(i)(6).ToString.Trim
-                    'Else
-                    '    dGSTCol = 0.0
-                    'End If
-
+                    
                     dTotalAmt = dTotalAmt + dReimbCol
                 End If
             Next
@@ -325,74 +306,77 @@
                 Dim sClincCode As String
                 sClincCode = odv(0)(1).ToString
 
-                ''Dim sSql As String
+                Dim sSql As String
                 Dim sBaseRef As String = String.Empty
                 Dim dTransAmt As Double = 0.0
                 Dim sTransType As String = String.Empty
+                Dim iLineID As Integer = 0
 
                 '**************GETTING ONLY DEBIT VALUES**********************
 
-                sSql = "SELECT CASE WHEN ""TransType""=46 THEN ""TransId"" ELSE ""CreatedBy"" END ""CreatedBy"", ""BalDueDeb"" *-1 ""Total"",""TransType"" "
-                sSql = sSql & " FROM ""JDT1"" WHERE ""ShortName"" = '" & sClincCode & "' and ""BalDueDeb"" - ""BalDueCred"" <> 0 "
-                sSql = sSql & " AND ""BalDueDeb"" > 0"
-                sSql = sSql & " ORDER BY ""DueDate"",""BaseRef"" "
-                oRecordSet = p_oCompany.GetBusinessObject(SAPbobsCOM.BoObjectTypes.BoRecordset)
+                'sSql = "SELECT CASE WHEN ""TransType""=46 THEN ""TransId"" ELSE ""CreatedBy"" END ""CreatedBy"", ""BalDueDeb"" *-1 ""Total"",""TransType"", ""Line_ID"" "
+                'sSql = sSql & " FROM ""JDT1"" WHERE ""ShortName"" = '" & sCardCode & "' and ""BalDueDeb"" - ""BalDueCred"" <> 0 "
+                'sSql = sSql & " AND ""BalDueDeb"" > 0"
+                'sSql = sSql & " ORDER BY ""DueDate"",""BaseRef"" "
+                'oRecordSet = p_oCompany.GetBusinessObject(SAPbobsCOM.BoObjectTypes.BoRecordset)
 
-                If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Query : " & sSql, sFuncName)
+                'If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Query : " & sSql, sFuncName)
 
-                oRecordSet.DoQuery(sSql)
-                If Not (oRecordSet.BoF And oRecordSet.EoF) Then
-                    oRecordSet.MoveFirst()
-                    Do Until oRecordSet.EoF
-                        sBaseRef = oRecordSet.Fields.Item("CreatedBy").Value
-                        dTransAmt = oRecordSet.Fields.Item("Total").Value
-                        sTransType = oRecordSet.Fields.Item("TransType").Value
-                        If dTotalAmt > 0.0 Then
-                            If dTransAmt < 0.0 Then
-                                'If iCount > 1 Then
-                                '    oPayments.Invoices.Add()
-                                'End If
-                                oPayments.Invoices.DocEntry = sBaseRef
-                                If sTransType = "18" Then
-                                    oPayments.Invoices.InvoiceType = SAPbobsCOM.BoRcptInvTypes.it_PurchaseInvoice
-                                    oPayments.Invoices.DocLine = 0
-                                ElseIf sTransType = "19" Then
-                                    oPayments.Invoices.InvoiceType = SAPbobsCOM.BoRcptInvTypes.it_PurchaseCreditNote
-                                    oPayments.Invoices.DocLine = 0
-                                ElseIf sTransType = "46" Then
-                                    oPayments.Invoices.InvoiceType = SAPbobsCOM.BoRcptInvTypes.it_JournalEntry
-                                    oPayments.Invoices.DocLine = 1
-                                End If
+                'oRecordSet.DoQuery(sSql)
+                'If Not (oRecordSet.BoF And oRecordSet.EoF) Then
+                '    oRecordSet.MoveFirst()
+                '    Do Until oRecordSet.EoF
+                '        sBaseRef = oRecordSet.Fields.Item("CreatedBy").Value
+                '        dTransAmt = oRecordSet.Fields.Item("Total").Value
+                '        sTransType = oRecordSet.Fields.Item("TransType").Value
+                '        iLineID = oRecordSet.Fields.Item("Line_ID").Value
+                '        If dTotalAmt > 0.0 Then
+                '            If dTransAmt < 0.0 Then
+                '                'If iCount > 1 Then
+                '                '    oPayments.Invoices.Add()
+                '                'End If
+                '                oPayments.Invoices.DocEntry = sBaseRef
+                '                If sTransType = "18" Then
+                '                    oPayments.Invoices.InvoiceType = SAPbobsCOM.BoRcptInvTypes.it_PurchaseInvoice
+                '                    oPayments.Invoices.DocLine = 0
+                '                ElseIf sTransType = "19" Then
+                '                    oPayments.Invoices.InvoiceType = SAPbobsCOM.BoRcptInvTypes.it_PurchaseCreditNote
+                '                    oPayments.Invoices.DocLine = 0
+                '                ElseIf sTransType = "46" Then
+                '                    oPayments.Invoices.InvoiceType = SAPbobsCOM.BoRcptInvTypes.it_JournalEntry
+                '                    oPayments.Invoices.DocLine = 1
+                '                ElseIf sTransType = "30" Then
+                '                    oPayments.Invoices.InvoiceType = SAPbobsCOM.BoRcptInvTypes.it_JournalEntry
+                '                    oPayments.Invoices.DocLine = iLineID
+                '                End If
 
-                                oPayments.Invoices.SumApplied = dTransAmt
-                                dTotalAmt = dTotalAmt - dTransAmt
+                '                oPayments.Invoices.SumApplied = dTransAmt
+                '                dTotalAmt = dTotalAmt - dTransAmt
 
-                                If Not (odv(0)(2).ToString.Trim = String.Empty) Then
-                                    oPayments.Invoices.DistributionRule = odv(0)(2).ToString.Trim
-                                End If
+                '                If Not (odv(0)(2).ToString.Trim = String.Empty) Then
+                '                    oPayments.Invoices.DistributionRule = odv(0)(2).ToString.Trim
+                '                End If
 
-                                oPayments.Invoices.UserFields.Fields.Item("U_AI_PayMode").Value = odv(0)(7).ToString.Trim
-                                oPayments.Invoices.UserFields.Fields.Item("U_AI_PayeeAcNo").Value = odv(0)(8).ToString.Trim
+                '                oPayments.Invoices.UserFields.Fields.Item("U_AI_PayMode").Value = odv(0)(7).ToString.Trim
+                '                oPayments.Invoices.UserFields.Fields.Item("U_AI_PayeeAcNo").Value = odv(0)(8).ToString.Trim
 
-                                bIsLineAdded = True
+                '                bIsLineAdded = True
 
-                                oPayments.Invoices.Add()
-                                ''iCount = iCount + 1
-                            End If
-                        End If
-                        oRecordSet.MoveNext()
-                    Loop
+                '                oPayments.Invoices.Add()
+                '                ''iCount = iCount + 1
+                '            End If
+                '        End If
+                '        oRecordSet.MoveNext()
+                '    Loop
 
-                End If
-
-
-
+                'End If
+                'If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Debit values completed successfully", sFuncName)
                 ''  System.Runtime.InteropServices.Marshal.ReleaseComObject(oRecordSet)
 
 
                 '*****************GETTING CREDIT VALUES*********************
-                sSql = "SELECT CASE WHEN ""TransType""=46 THEN ""TransId"" ELSE ""CreatedBy"" END ""CreatedBy"", ""BalDueCred"" ""Total"",""TransType"" "
-                sSql = sSql & " FROM ""JDT1"" WHERE ""ShortName"" = '" & sClincCode & "' and ""BalDueDeb"" - ""BalDueCred"" <> 0 "
+                sSql = "SELECT CASE WHEN ""TransType""=46 THEN ""TransId"" ELSE ""CreatedBy"" END ""CreatedBy"", ""BalDueCred"" ""Total"",""TransType"", ""Line_ID"" "
+                sSql = sSql & " FROM ""JDT1"" WHERE ""ShortName"" = '" & sCardCode & "' and ""BalDueDeb"" - ""BalDueCred"" <> 0 "
                 sSql = sSql & " AND ""BalDueCred"" > 0"
                 sSql = sSql & " ORDER BY ""DueDate"",""BaseRef"" "
                 oRecordSet1 = p_oCompany.GetBusinessObject(SAPbobsCOM.BoObjectTypes.BoRecordset)
@@ -406,6 +390,7 @@
                         sBaseRef = oRecordSet1.Fields.Item("CreatedBy").Value
                         dTransAmt = oRecordSet1.Fields.Item("Total").Value
                         sTransType = oRecordSet1.Fields.Item("TransType").Value
+                        iLineID = oRecordSet1.Fields.Item("Line_ID").Value
                         If dTotalAmt > 0.0 Then
                             'If iCount > 1 Then
                             '    oPayments.Invoices.Add()
@@ -420,6 +405,9 @@
                             ElseIf sTransType = "46" Then
                                 oPayments.Invoices.InvoiceType = SAPbobsCOM.BoRcptInvTypes.it_JournalEntry
                                 oPayments.Invoices.DocLine = 1
+                            ElseIf sTransType = "30" Then
+                                oPayments.Invoices.InvoiceType = SAPbobsCOM.BoRcptInvTypes.it_JournalEntry
+                                oPayments.Invoices.DocLine = iLineID
                             End If
                             If dTotalAmt > dTransAmt Then
                                 oPayments.Invoices.SumApplied = dTransAmt
@@ -446,14 +434,28 @@
                 End If
                 ''System.Runtime.InteropServices.Marshal.ReleaseComObject(oRecordSet)
 
-                If oRecordSet.RecordCount = 0 AndAlso oRecordSet1.RecordCount = 0 Then
+                If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Credit values completed successfully", sFuncName)
+
+                If oRecordSet1.RecordCount = 0 Then
+                    'If oRecordSet.RecordCount = 0 AndAlso oRecordSet1.RecordCount = 0 Then
                     If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Calling Create_OutgoingPayment", sFuncName)
                     If Create_OutgoingPayment(odv, sFileName, sDBCode, sBatchNo, sBatchPeriod, "GIRO", sFullBatchPeriod, sErrDesc) <> RTN_SUCCESS Then Throw New ArgumentException(sErrDesc)
                     Return RTN_SUCCESS
                 End If
 
+                If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Starting Payment means", sFuncName)
+
                 If dTotPaymentAmt > 0.0 And bIsLineAdded = True Then
-                    sTrnsAcct = GetBankTrnsAcct(sDBCode)
+                    'sTrnsAcct = GetBankTrnsAcct(sDBCode)
+
+                    If Not sCardCode = String.Empty Then
+                        sTrnsAcct = GetHouseBankAccout_GIRO(sCardCode, p_oCompany.CompanyDB)
+                        If sTrnsAcct = String.Empty Then
+                            sTrnsAcct = GetBankTrnsAcct(sDBCode)
+                        End If
+                    Else
+                        sTrnsAcct = GetBankTrnsAcct(sDBCode)
+                    End If
 
                     oPayments.TransferAccount = sTrnsAcct
                     oPayments.TransferDate = CDate(sBatchPeriod)
@@ -511,18 +513,6 @@
         Dim oRecordSet As SAPbobsCOM.Recordset
         Dim oRecordSet1 As SAPbobsCOM.Recordset
         Try
-
-            sSql = "SELECT DISTINCT ""U_AI_APARUploadName"" FROM ""OVPM"" WHERE IFNULL(""U_AI_APARUploadName"",'') <> ''"
-            If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("EXECUTING SQL :" & sSql, sFuncName)
-            dtFileName = ExecuteQueryReturnDataTable(sSql, p_oCompany.CompanyDB)
-
-            dtFileName.DefaultView.RowFilter = "U_AI_APARUploadName = '" & sFileName & "'"
-            If dtFileName.DefaultView.Count > 0 Then
-                sErrDesc = "Interface file ::" & sFileName & " has already been uploaded"
-                Call WriteToLogFile(sErrDesc, sFuncName)
-                Throw New ArgumentException(sErrDesc)
-            End If
-
             If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Starting Function", sFuncName)
 
             Dim oPayments As SAPbobsCOM.IPayments
@@ -552,23 +542,27 @@
                     If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("CardCode Length is " & sFullCardCode.Length, sFuncName)
 
                     If sFullCardCode.Length > 15 Then
-                        sCardCode = sFullCardCode.Substring(0, 15)
+                        sCardCode = sFullCardCode.Substring(0, 15).ToUpper()
                     Else
-                        sCardCode = sFullCardCode
+                        sCardCode = sFullCardCode.ToUpper()
                     End If
 
                     sCardName = odv(0)(0).ToString.Trim()
+                    
+                    Dim sCardCode_Upper As String = sCardCode.ToUpper()
 
-                    dtBP.DefaultView.RowFilter = "CardCode = '" & sCardCode & "'"
+                    dtBP.DefaultView.RowFilter = "CardCode = '" & sCardCode_Upper & "'"
                     If dtBP.DefaultView.Count = 0 Then
                         If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Calling CheckBP", sFuncName)
                         If CheckBP(sFullCardCode, sCardCode, sCardName, "V", sErrDesc) <> RTN_SUCCESS Then Throw New ArgumentException(sErrDesc)
                         If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Calling Create_OutgoingPayment", sFuncName)
                         If Create_OutgoingPayment(odv, sFileName, sDBCode, sBatchNo, sBatchPeriod, "CHEQUE", sFullBatchPeriod, sErrDesc) <> RTN_SUCCESS Then Throw New ArgumentException(sErrDesc)
                         Return RTN_SUCCESS
+                    Else
+                        sCardCode = dtBP.DefaultView.Item(0)(1).ToString().Trim()
                     End If
 
-                    oPayments.CardCode = sCardCode
+                    oPayments.CardCode = sCardCode 'odv(i)(1).ToString.Trim
                     oPayments.DocDate = CDate(sBatchPeriod)
                     oPayments.CounterReference = odv(i)(9).ToString.Trim
                     oPayments.Remarks = sBatchNo
@@ -583,62 +577,67 @@
                     Dim sBaseRef As String = String.Empty
                     Dim dTransAmt As Double = 0.0
                     Dim sTransType As String = String.Empty
+                    Dim iLineId As Integer = 0
                     Dim sClincCode As String
                     sClincCode = odv(i)(1).ToString
 
-                    '**************GETTING ONLY DEBIT VALUES**********************
+                    ''**************GETTING ONLY DEBIT VALUES**********************
 
-                    sSql = "SELECT CASE WHEN ""TransType""=46 THEN ""TransId"" ELSE ""CreatedBy"" END ""CreatedBy"", ""BalDueDeb"" *-1 ""Total"",""TransType"" "
-                    sSql = sSql & " FROM ""JDT1"" WHERE ""ShortName"" = '" & sClincCode & "' and ""BalDueDeb"" - ""BalDueCred"" <> 0 "
-                    sSql = sSql & " AND ""BalDueDeb"" > 0"
-                    sSql = sSql & " ORDER BY ""DueDate"",""BaseRef"" "
-                    oRecordSet = p_oCompany.GetBusinessObject(SAPbobsCOM.BoObjectTypes.BoRecordset)
-                    oRecordSet.DoQuery(sSql)
-                    If Not (oRecordSet.BoF And oRecordSet.EoF) Then
-                        oRecordSet.MoveFirst()
-                        Do Until oRecordSet.EoF
-                            sBaseRef = oRecordSet.Fields.Item("CreatedBy").Value
-                            dTransAmt = oRecordSet.Fields.Item("Total").Value
-                            sTransType = oRecordSet.Fields.Item("TransType").Value
-                            If dTotalAmt > 0.0 Then
-                                If dTransAmt < 0.0 Then
-                                    If iCount > 1 Then
-                                        oPayments.Invoices.Add()
-                                    End If
-                                    oPayments.Invoices.DocEntry = sBaseRef
-                                    If sTransType = "18" Then
-                                        oPayments.Invoices.InvoiceType = SAPbobsCOM.BoRcptInvTypes.it_PurchaseInvoice
-                                        oPayments.Invoices.DocLine = 0
-                                    ElseIf sTransType = "19" Then
-                                        oPayments.Invoices.InvoiceType = SAPbobsCOM.BoRcptInvTypes.it_PurchaseCreditNote
-                                        oPayments.Invoices.DocLine = 0
-                                    ElseIf sTransType = "46" Then
-                                        oPayments.Invoices.InvoiceType = SAPbobsCOM.BoRcptInvTypes.it_JournalEntry
-                                        oPayments.Invoices.DocLine = 1
-                                    End If
-                                    oPayments.Invoices.SumApplied = dTransAmt
-                                    dTotalAmt = dTotalAmt - dTransAmt
+                    'sSql = "SELECT CASE WHEN ""TransType""=46 THEN ""TransId"" ELSE ""CreatedBy"" END ""CreatedBy"", ""BalDueDeb"" *-1 ""Total"",""TransType"", ""Line_ID"" "
+                    'sSql = sSql & " FROM ""JDT1"" WHERE ""ShortName"" = '" & sCardCode & "' and ""BalDueDeb"" - ""BalDueCred"" <> 0 "
+                    'sSql = sSql & " AND ""BalDueDeb"" > 0"
+                    'sSql = sSql & " ORDER BY ""DueDate"",""BaseRef"" "
+                    'oRecordSet = p_oCompany.GetBusinessObject(SAPbobsCOM.BoObjectTypes.BoRecordset)
+                    'oRecordSet.DoQuery(sSql)
+                    'If Not (oRecordSet.BoF And oRecordSet.EoF) Then
+                    '    oRecordSet.MoveFirst()
+                    '    Do Until oRecordSet.EoF
+                    '        sBaseRef = oRecordSet.Fields.Item("CreatedBy").Value
+                    '        dTransAmt = oRecordSet.Fields.Item("Total").Value
+                    '        sTransType = oRecordSet.Fields.Item("TransType").Value
+                    '        iLineId = oRecordSet.Fields.Item("Line_ID").Value
+                    '        If dTotalAmt > 0.0 Then
+                    '            If dTransAmt < 0.0 Then
+                    '                If iCount > 1 Then
+                    '                    oPayments.Invoices.Add()
+                    '                End If
+                    '                oPayments.Invoices.DocEntry = sBaseRef
+                    '                If sTransType = "18" Then
+                    '                    oPayments.Invoices.InvoiceType = SAPbobsCOM.BoRcptInvTypes.it_PurchaseInvoice
+                    '                    oPayments.Invoices.DocLine = 0
+                    '                ElseIf sTransType = "19" Then
+                    '                    oPayments.Invoices.InvoiceType = SAPbobsCOM.BoRcptInvTypes.it_PurchaseCreditNote
+                    '                    oPayments.Invoices.DocLine = 0
+                    '                ElseIf sTransType = "46" Then
+                    '                    oPayments.Invoices.InvoiceType = SAPbobsCOM.BoRcptInvTypes.it_JournalEntry
+                    '                    oPayments.Invoices.DocLine = 1
+                    '                ElseIf sTransType = "30" Then
+                    '                    oPayments.Invoices.InvoiceType = SAPbobsCOM.BoRcptInvTypes.it_JournalEntry
+                    '                    oPayments.Invoices.DocLine = iLineId
+                    '                End If
+                    '                oPayments.Invoices.SumApplied = dTransAmt
+                    '                dTotalAmt = dTotalAmt - dTransAmt
 
-                                    If Not (odv(i)(2).ToString.Trim = String.Empty) Then
-                                        oPayments.Invoices.DistributionRule = odv(i)(2).ToString.Trim
-                                    End If
+                    '                If Not (odv(i)(2).ToString.Trim = String.Empty) Then
+                    '                    oPayments.Invoices.DistributionRule = odv(i)(2).ToString.Trim
+                    '                End If
 
-                                    oPayments.Invoices.UserFields.Fields.Item("U_AI_PayMode").Value = odv(i)(7).ToString.Trim
-                                    oPayments.Invoices.UserFields.Fields.Item("U_AI_PayeeAcNo").Value = odv(i)(8).ToString.Trim
+                    '                oPayments.Invoices.UserFields.Fields.Item("U_AI_PayMode").Value = odv(i)(7).ToString.Trim
+                    '                oPayments.Invoices.UserFields.Fields.Item("U_AI_PayeeAcNo").Value = odv(i)(8).ToString.Trim
 
-                                    iCount = iCount + 1
-                                    bIsLineAdded = True
+                    '                iCount = iCount + 1
+                    '                bIsLineAdded = True
 
-                                End If
-                            End If
-                            oRecordSet.MoveNext()
-                        Loop
-                    End If
+                    '            End If
+                    '        End If
+                    '        oRecordSet.MoveNext()
+                    '    Loop
+                    'End If
                     ''System.Runtime.InteropServices.Marshal.ReleaseComObject(oRecordSet)
 
                     '*****************GETTING CREDIT VALUES*********************
-                    sSql = "SELECT CASE WHEN ""TransType""=46 THEN ""TransId"" ELSE ""CreatedBy"" END ""CreatedBy"", ""BalDueCred"" ""Total"",""TransType"" "
-                    sSql = sSql & " FROM ""JDT1"" WHERE ""ShortName"" = '" & sClincCode & "' and ""BalDueDeb"" - ""BalDueCred"" <> 0 "
+                    sSql = "SELECT CASE WHEN ""TransType""=46 THEN ""TransId"" ELSE ""CreatedBy"" END ""CreatedBy"", ""BalDueCred"" ""Total"",""TransType"", ""Line_ID"" "
+                    sSql = sSql & " FROM ""JDT1"" WHERE ""ShortName"" = '" & sCardCode & "' and ""BalDueDeb"" - ""BalDueCred"" <> 0 "
                     sSql = sSql & " AND ""BalDueCred"" > 0"
                     sSql = sSql & " ORDER BY ""DueDate"",""BaseRef"" "
                     oRecordSet1 = p_oCompany.GetBusinessObject(SAPbobsCOM.BoObjectTypes.BoRecordset)
@@ -649,6 +648,7 @@
                             sBaseRef = oRecordSet1.Fields.Item("CreatedBy").Value
                             dTransAmt = oRecordSet1.Fields.Item("Total").Value
                             sTransType = oRecordSet1.Fields.Item("TransType").Value
+                            iLineId = oRecordSet1.Fields.Item("Line_ID").Value
                             If dTotalAmt > 0.0 Then
                                 If iCount > 1 Then
                                     oPayments.Invoices.Add()
@@ -662,8 +662,11 @@
                                     oPayments.Invoices.InvoiceType = SAPbobsCOM.BoRcptInvTypes.it_PurchaseCreditNote
                                     oPayments.Invoices.DocLine = 0
                                 ElseIf sTransType = "46" Then
-                                    oPayments.Invoices.InvoiceType = SAPbobsCOM.BoRcptInvTypes.it_JournalEntry
+                                    oPayments.Invoices.InvoiceType = SAPbobsCOM.BoRcptInvTypes.it_Receipt
                                     oPayments.Invoices.DocLine = 1
+                                ElseIf sTransType = "30" Then
+                                    oPayments.Invoices.InvoiceType = SAPbobsCOM.BoRcptInvTypes.it_JournalEntry
+                                    oPayments.Invoices.DocLine = iLineId
                                 End If
                                 If dTotalAmt > dTransAmt Then
                                     oPayments.Invoices.SumApplied = dTransAmt
@@ -690,7 +693,8 @@
                         Loop
                     End If
 
-                    If oRecordSet.RecordCount = 0 AndAlso oRecordSet1.RecordCount = 0 Then
+                    If oRecordSet1.RecordCount = 0 Then
+                        'If oRecordSet.RecordCount = 0 AndAlso oRecordSet1.RecordCount = 0 Then
                         If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Calling Create_OutgoingPayment", sFuncName)
                         If Create_OutgoingPayment(odv, sFileName, sDBCode, sBatchNo, sBatchPeriod, "CHEQUE", sFullBatchPeriod, sErrDesc) <> RTN_SUCCESS Then Throw New ArgumentException(sErrDesc)
                         Return RTN_SUCCESS
@@ -700,7 +704,15 @@
                     sBankCntryCode = GetCountryCode(sDBCode)
                     sBankCode = GetBankCode(sDBCode)
                     sChkGLAcct = GetCheckGLAcct(sDBCode)
-                    sChkAcct = GetBankAcct(sDBCode)
+                    ''''''''''''''''''''''''''''sChkAcct = GetBankAcct(sDBCode)
+                    If Not sCardCode = String.Empty Then
+                        sChkAcct = GetHouseBankAccout(sCardCode, p_oCompany.CompanyDB)
+                        If sChkAcct = String.Empty Then
+                            sChkAcct = GetBankAcct(sDBCode)
+                        End If
+                    Else
+                        sChkAcct = GetBankAcct(sDBCode)
+                    End If
 
                     oPayments.Checks.CountryCode = sBankCntryCode
                     oPayments.Checks.BankCode = sBankCode
@@ -760,21 +772,7 @@
         Dim dReimbCol As Double = 0.0
         Dim dTotalAmt As Double = 0.0
         Dim sTrnsAcct As String = String.Empty
-        Dim sSql As String = String.Empty
-
         Try
-
-            sSql = "SELECT DISTINCT ""U_AI_APARUploadName"" FROM ""OVPM"" WHERE IFNULL(""U_AI_APARUploadName"",'') <> ''"
-            If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("EXECUTING SQL :" & sSql, sFuncName)
-            dtFileName = ExecuteQueryReturnDataTable(sSql, p_oCompany.CompanyDB)
-
-            dtFileName.DefaultView.RowFilter = "U_AI_APARUploadName = '" & sFileName & "'"
-            If dtFileName.DefaultView.Count > 0 Then
-                sErrDesc = "Interface file ::" & sFileName & " has already been uploaded"
-                Call WriteToLogFile(sErrDesc, sFuncName)
-                Throw New ArgumentException(sErrDesc)
-            End If
-
             sFuncName = "Create_OutgoingPayment"
             If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Starting Function", sFuncName)
 
@@ -792,6 +790,18 @@
             End If
 
             sCardName = oDV(0)(0).ToString.Trim()
+
+            Dim sCardCode_Upper As String = sCardCode.ToUpper()
+
+            Dim oBP As SAPbobsCOM.BusinessPartners
+            oBP = p_oCompany.GetBusinessObject(SAPbobsCOM.BoObjectTypes.oBusinessPartners)
+
+            If oBP.GetByKey(sCardCode) = False Then
+                If oBP.GetByKey(sCardCode_Upper) = False Then
+                Else
+                    sCardCode = sCardCode_Upper
+                End If
+            End If
 
             If sType.ToString().Trim().ToUpper() = "CHEQUE" Then
 
@@ -819,7 +829,15 @@
                         sBankCntryCode = GetCountryCode(sDBCode)
                         sBankCode = GetBankCode(sDBCode)
                         sChkGLAcct = GetCheckGLAcct(sDBCode)
-                        sChkAcct = GetBankAcct(sDBCode)
+                        ''''''''''''sChkAcct = GetBankAcct(sDBCode)
+                        If Not sCardCode = String.Empty Then
+                            sChkAcct = GetHouseBankAccout(sCardCode, p_oCompany.CompanyDB)
+                            If sChkAcct = String.Empty Then
+                                sChkAcct = GetBankAcct(sDBCode)
+                            End If
+                        Else
+                            sChkAcct = GetBankAcct(sDBCode)
+                        End If
 
                         oPayment.Checks.CountryCode = sBankCntryCode
                         oPayment.Checks.BankCode = sBankCode
@@ -863,7 +881,15 @@
                 Next
 
                 If dTotalAmt > 0.0 Then
-                    sTrnsAcct = GetBankTrnsAcct(sDBCode)
+                    ' sTrnsAcct = GetBankTrnsAcct(sDBCode)
+                    If Not sCardCode = String.Empty Then
+                        sTrnsAcct = GetHouseBankAccout_GIRO(sCardCode, p_oCompany.CompanyDB)
+                        If sTrnsAcct = String.Empty Then
+                            sTrnsAcct = GetBankTrnsAcct(sDBCode)
+                        End If
+                    Else
+                        sTrnsAcct = GetBankTrnsAcct(sDBCode)
+                    End If
 
                     oPayment.TransferAccount = sTrnsAcct
                     oPayment.TransferDate = CDate(sBatchPeriod)

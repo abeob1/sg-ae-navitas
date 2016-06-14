@@ -5,8 +5,6 @@
     Private dtItemCode As DataTable
     Private dtAcctCode As DataTable
     Private dtVendRefNo As DataTable
-    Private dtFileName As DataTable
-    Private dtAPInvoice As DataTable
 
     Public Function ProcessAPInvToProvider(ByVal file As System.IO.FileInfo, ByVal odv As DataView, ByRef sErrDesc As String) As Long
 
@@ -52,10 +50,9 @@
                 If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("EXECUTING  SQL :" & sSQL, sFuncName)
                 p_oDtPayTerms = ExecuteQueryReturnDataTable(sSQL, p_oCompany.CompanyDB)
 
-
                 If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Calling AddAPInvoice_CreditNote()", sFuncName)
 
-                Console.WriteLine("Creating A/p Invoice/ Credit Memo Document")
+                Console.WriteLine("Creating A/p / Credit Memo Document")
                 If ProcessExcelDatas(file, file.Name, odv, sErrDesc) <> RTN_SUCCESS Then Throw New ArgumentException(sErrDesc)
 
             End If
@@ -83,8 +80,6 @@
         Dim dReimbAmt As Double = 0.0
         Dim oDtInvoiceItems As DataTable
         Dim oDtCreditMemoItems As DataTable
-        Dim dDocToal As Double = 0.0
-
         oDtInvoiceItems = oDv.Table.Clone
         oDtCreditMemoItems = oDv.Table.Clone
         oDtInvoiceItems.Clear()
@@ -115,7 +110,6 @@
                         Else
                             oDtCreditMemoItems.ImportRow(row)
                         End If
-
                     Catch ex As Exception
                     End Try
                 End If
@@ -125,41 +119,7 @@
             odvInvView = New DataView(oDtInvoiceItems)
 
             Dim odvCrdtView As DataView
-            Dim sSQL As String = String.Empty
-
             odvCrdtView = New DataView(oDtCreditMemoItems)
-
-
-            If odvInvView.Count > 0 Then
-                sSQL = "SELECT DISTINCT ""U_AI_APARUploadName"" FROM ""OPCH"" WHERE IFNULL(""U_AI_APARUploadName"",'') <> ''"
-                If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("EXECUTING SQL :" & sSQL, sFuncName)
-                dtFileName = ExecuteQueryReturnDataTable(sSQL, p_oCompany.CompanyDB)
-
-
-                dtFileName.DefaultView.RowFilter = "U_AI_APARUploadName = '" & file.Name & "'"
-                If dtFileName.DefaultView.Count > 0 Then
-                    sErrDesc = "Interface file ::" & file.Name & " has already been uploaded"
-                    Call WriteToLogFile(sErrDesc, sFuncName)
-                    Throw New ArgumentException(sErrDesc)
-                End If
-            End If
-
-            If odvCrdtView.Count > 0 Then
-                sSQL = "SELECT DISTINCT ""U_AI_APARUploadName"" FROM ""ORPC"" WHERE IFNULL(""U_AI_APARUploadName"",'') <> ''"
-                If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("EXECUTING SQL :" & sSQL, sFuncName)
-                dtFileName = ExecuteQueryReturnDataTable(sSQL, p_oCompany.CompanyDB)
-
-                dtFileName.DefaultView.RowFilter = "U_AI_APARUploadName = '" & file.Name & "'"
-                If dtFileName.DefaultView.Count > 0 Then
-                    sErrDesc = "Interface file ::" & file.Name & " has already been uploaded"
-                    Call WriteToLogFile(sErrDesc, sFuncName)
-                    Throw New ArgumentException(sErrDesc)
-                End If
-            End If
-
-            If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Calling CreateDataTable() ", sFuncName)
-            dtAPInvoice = CreateDataTable("DocEntry", "FileName", "CardCode", "DocTotal")
-
 
             '**********************GROUP EXCEL DATAS BASED ON VENDOR CODE - A/P INVOICE*******************
             Dim oDTInvGrpData As DataTable = Nothing
@@ -213,9 +173,8 @@
                     End If
 
                     If bTransStarted = True Then
-
-
                         If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Calling AddCreditMemoDoc()", sFuncName)
+
                         If AddCreditMemoDoc(odvCrdtView, file.Name, sBatchNo, sBatchPeriod, sFullBatchPeriod, sErrDesc) <> RTN_SUCCESS Then Throw New ArgumentException(sErrDesc)
                     End If
 
@@ -258,35 +217,7 @@
 
     End Function
 
-    Private Function APInvoiceChecking(ByVal sCardCode As String, ByVal sFileName As String, _
-                                               ByVal dDocTotal As Double, ByRef sErrDesc As String) As DataTable
-
-        Dim sFuncName As String = String.Empty
-        Dim dtDocEntry As DataTable = New DataTable
-        Dim sQuery As String = String.Empty
-
-        Try
-            sFuncName = "APInvoiceChecking()"
-            If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Starting Function", sFuncName)
-
-            sQuery = "SELECT ""DocEntry"" FROM OPCH WHERE ""U_AI_APARUploadName"" ='" & sFileName & "' AND ""CardCode""='" & sCardCode & "' AND ""DocTotal""=" & dDocTotal & ""
-            If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("EXECUTING SQL :" & sQuery, sFuncName)
-            dtDocEntry = ExecuteQueryReturnDataTable(sQuery, p_oCompany.CompanyDB)
-
-            If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Completed with SUCCESS", sFuncName)
-            APInvoiceChecking = dtDocEntry
-
-        Catch ex As Exception
-            sErrDesc = ex.Message().ToString()
-            If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Completed with ERROR", sFuncName)
-            APInvoiceChecking = dtDocEntry
-        End Try
-    End Function
-
-    Private Function AddInvoiceDoc(ByVal odv As DataView, ByVal sFileName As String, _
-                                   ByVal sBatchNo As String, ByVal sBatchPeriod As String, _
-                                   ByVal sFullBatchPeriod As String, ByRef sErrDesc As String) As Long
-
+    Private Function AddInvoiceDoc(ByVal odv As DataView, ByVal sFileName As String, ByVal sBatchNo As String, ByVal sBatchPeriod As String, ByVal sFullBatchPeriod As String, ByRef sErrDesc As String) As Long
         Dim sFuncName As String = "AddInvoiceDoc"
         Dim sCardCode As String = String.Empty
         Dim sFullCardCode As String = String.Empty
@@ -295,12 +226,12 @@
         Dim bLineAdded As Boolean = False
         Dim iRetcode, iErrCode As Integer
         Dim sCardName As String = String.Empty
+        Dim sNumAtCard As String = String.Empty
         Dim sSql As String = String.Empty
 
         Try
 
             Console.WriteLine("Creating A/p Invoice..")
-
             If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Creating Purchase Invoice Object", sFuncName)
             oDoc = p_oCompany.GetBusinessObject(SAPbobsCOM.BoObjectTypes.oPurchaseInvoices)
 
@@ -310,40 +241,45 @@
             If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("CardCode Length is " & sFullCardCode.Length, sFuncName)
 
             If sFullCardCode.Length > 15 Then
-                sCardCode = sFullCardCode.Substring(0, 15)
+                sCardCode = sFullCardCode.Substring(0, 15).ToUpper()
             Else
-                sCardCode = sFullCardCode
+                sCardCode = sFullCardCode.ToUpper()
             End If
 
             sCardName = odv(0)(1).ToString.Trim
 
             dtBP.DefaultView.RowFilter = "CardCode = '" & sCardCode & "'"
             If dtBP.DefaultView.Count = 0 Then
-
+                'sErrDesc = "Cardcode ::" & sCardCode & " provided does not exist in SAP."
+                'Call WriteToLogFile(sErrDesc, sFuncName)
+                'Throw New ArgumentException(sErrDesc)
                 If CheckBP(sFullCardCode, sCardCode, sCardName, "V", sErrDesc) <> RTN_SUCCESS Then Throw New ArgumentException(sErrDesc)
 
             End If
 
+            sNumAtCard = odv(0)(0).ToString.Trim
 
-            'sSql = "SELECT DISTINCT ""NumAtCard"" FROM ""OPCH"" WHERE IFNULL(""NumAtCard"",'') <> '' AND ""CardCode"" = '" & sCardCode & "'"
-            'If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("EXECUTING SQL :" & sSql, sFuncName)
-            'dtVendRefNo = ExecuteQueryReturnDataTable(sSql, p_oCompany.CompanyDB)
+            sSql = "SELECT DISTINCT ""NumAtCard"" FROM ""OPCH"" WHERE IFNULL(""NumAtCard"",'') <> '' AND ""CardCode"" = '" & sCardCode & "'"
+            If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("EXECUTING SQL :" & sSql, sFuncName)
+            dtVendRefNo = ExecuteQueryReturnDataTable(sSql, p_oCompany.CompanyDB)
 
-            'If Not (sBatchNo = String.Empty) Then
-            '    dtVendRefNo.DefaultView.RowFilter = "NumAtCard = '" & sBatchNo & "'"
-            '    If dtVendRefNo.DefaultView.Count > 0 Then
-            '        sErrDesc = "Vendor Ref No :: " & sBatchNo & " already exist in SAP."
-            '        Call WriteToLogFile(sErrDesc, sFuncName)
-            '        Throw New ArgumentException(sErrDesc)
-            '    End If
-            'End If
+            If Not (sNumAtCard = String.Empty) Then
+                dtVendRefNo.DefaultView.RowFilter = "NumAtCard = '" & sNumAtCard & "'"
+                If dtVendRefNo.DefaultView.Count = 0 Then
+                    oDoc.NumAtCard = sNumAtCard
+                Else
+                    sErrDesc = "Vendor Ref No :: " & sNumAtCard & " already exist in SAP."
+                    Call WriteToLogFile(sErrDesc, sFuncName)
+                    Throw New ArgumentException(sErrDesc)
+                End If
+            End If
 
-            If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Customer Code " & sCardCode, sFuncName)
+
             oDoc.CardCode = sCardCode
             oDoc.DocDate = CDate(sBatchPeriod)
-            'oDoc.Comments = sBatchNo
+            oDoc.Comments = sBatchNo
             oDoc.JournalMemo = sFullBatchPeriod
-            oDoc.NumAtCard = sBatchNo
+            oDoc.NumAtCard = sNumAtCard
             oDoc.UserFields.Fields.Item("U_AI_APARUploadName").Value = sFileName
             oDoc.UserFields.Fields.Item("U_AI_InvRefNo").Value = sCardName
 
@@ -357,7 +293,7 @@
                 Dim sAcctCode As String = String.Empty
                 Dim dReimbAmt As Double = 0.0
 
-
+                If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Customer Code " & sCardCode, sFuncName)
 
                 sAcctCode = odv(i)(4).ToString.Trim
                 sCostCenter = odv(i)(3).ToString.Trim()
@@ -407,8 +343,6 @@
 
                     oDoc.Lines.ItemCode = sItemCode
                     oDoc.Lines.UnitPrice = Math.Abs(dReimbAmt)
-
-                    oDoc.Lines.UserFields.Fields.Item("U_AI_InvRefNo").Value = odv(i)(0).ToString.Trim()
 
                     If Not (odv(i)(7).ToString.Trim() = String.Empty) Then
                         If (odv(i)(7).ToString.Trim = 0) Then
@@ -433,7 +367,7 @@
                     End If
 
                     If Not (odv(i)(10).ToString.Trim = String.Empty) Then
-                        oDoc.Comments = odv(0)(10).ToString.Trim
+                        oDoc.Comments = sBatchNo & "-" & odv(0)(10).ToString.Trim
                     End If
 
                     bLineAdded = True
@@ -454,12 +388,7 @@
                 Else
                     Dim iDocNo As Integer
                     p_oCompany.GetNewObjectCode(iDocNo)
-
-                    oDoc.GetByKey(iDocNo)
-                    If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Calling AddDataToTable()", sFuncName)
-                    AddDataToTable(dtAPInvoice, iDocNo, sFileName, sCardCode, oDoc.DocTotal)
-                    If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Document Created successfully :: " & oDoc.DocNum, sFuncName)
-                    Console.WriteLine("Document Created successfully :: " & oDoc.DocNum)
+                    Console.WriteLine("Document Created successfully :: " & iDocNo)
                     System.Runtime.InteropServices.Marshal.ReleaseComObject(oDoc)
                 End If
             End If
@@ -475,10 +404,7 @@
         End Try
     End Function
 
-    Private Function AddCreditMemoDoc(ByVal odv As DataView, ByVal sFileName As String, _
-                                      ByVal sBatchNo As String, ByVal sBatchPeriod As String, _
-                                      ByVal sFullBatchPeriod As String, ByRef sErrDesc As String) As Long
-
+    Private Function AddCreditMemoDoc(ByVal odv As DataView, ByVal sFileName As String, ByVal sBatchNo As String, ByVal sBatchPeriod As String, ByVal sFullBatchPeriod As String, ByRef sErrDesc As String) As Long
         Dim sFuncName As String = "AddCreditMemoDoc"
         Dim sCardCode As String = String.Empty
         Dim sFullCardCode As String = String.Empty
@@ -489,14 +415,10 @@
         Dim sCardName As String = String.Empty
         Dim sNumAtCard As String = String.Empty
         Dim sSql As String = String.Empty
-        Dim dDocToal As Double = 0.0
-        Dim dReimbAmt As Double = 0.0
-        Dim dtDocTotal As DataTable = New DataTable
-        Dim sAPDocEntry As String = String.Empty
+
         Try
 
             Console.WriteLine("Creating A/P Credit Memo..")
-
             If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Creating A/p Credit Memo Object", sFuncName)
             oDoc = p_oCompany.GetBusinessObject(SAPbobsCOM.BoObjectTypes.oPurchaseCreditNotes)
 
@@ -506,60 +428,42 @@
             If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("CardCode Length is " & sFullCardCode.Length, sFuncName)
 
             If sFullCardCode.Length > 15 Then
-                sCardCode = sFullCardCode.Substring(0, 15)
+                sCardCode = sFullCardCode.Substring(0, 15).ToUpper()
             Else
-                sCardCode = sFullCardCode
+                sCardCode = sFullCardCode.ToUpper()
             End If
 
             sCardName = odv(0)(1).ToString.Trim
 
             dtBP.DefaultView.RowFilter = "CardCode = '" & sCardCode & "'"
             If dtBP.DefaultView.Count = 0 Then
-                If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Calling CheckBP()", sFuncName)
                 If CheckBP(sFullCardCode, sCardCode, sCardName, "V", sErrDesc) <> RTN_SUCCESS Then Throw New ArgumentException(sErrDesc)
             End If
 
+            sNumAtCard = odv(0)(0).ToString.Trim
 
-            For iRow As Integer = 0 To odv.Count - 1
-                If Not (odv(iRow)(5).ToString = String.Empty) Then
-                    dReimbAmt = odv(iRow)(5).ToString
+            sSql = "SELECT DISTINCT ""NumAtCard"" FROM ""ORPC"" WHERE IFNULL(""NumAtCard"",'') <> '' AND ""CardCode"" = '" & sCardCode & "'"
+            If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("EXECUTING SQL :" & sSql, sFuncName)
+            dtVendRefNo = ExecuteQueryReturnDataTable(sSql, p_oCompany.CompanyDB)
+
+            If Not (sNumAtCard = String.Empty) Then
+                dtVendRefNo.DefaultView.RowFilter = "NumAtCard = '" & sNumAtCard & "'"
+                If dtVendRefNo.DefaultView.Count = 0 Then
+                    oDoc.NumAtCard = sNumAtCard
                 Else
-                    dReimbAmt = 0.0
+                    sErrDesc = "Vendor Ref No :: " & sNumAtCard & " already exist in SAP."
+                    Call WriteToLogFile(sErrDesc, sFuncName)
+                    Throw New ArgumentException(sErrDesc)
                 End If
-                dDocToal += dReimbAmt
-            Next
-
-            If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Document Total : " & dDocToal, sFuncName)
-
-            ''dtAPInvoice.DefaultView.RowFilter = "FileName = '" & sFileName & "' AND CardCode='" & sCardCode & "' AND DocTotal='" & dDocToal & "'"
-            dtAPInvoice.DefaultView.RowFilter = "FileName = '" & sFileName & "' AND CardCode='" & sCardCode & "'"
-
-            'If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Calling APInvoiceChecking()", sFuncName)
-            'dtDocTotal = APInvoiceChecking(sCardCode, sFileName, Math.Abs(dDocToal), sErrDesc)
-
-            If dtAPInvoice.DefaultView.Count > 0 Then
-
-                sAPDocEntry = dtAPInvoice.DefaultView.Item(0)(0).ToString().Trim()
-
-                If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Document Number : " & sAPDocEntry, sFuncName)
-
-                'If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Calling CopyDocument()", sFuncName)
-                'If CopyDocument(SAPbobsCOM.BoObjectTypes.oPurchaseInvoices, sAPDocEntry, SAPbobsCOM.BoObjectTypes.oPurchaseCreditNotes, _
-                '                p_oCompany, sErrDesc, False) <> RTN_SUCCESS Then Throw New ArgumentException(sErrDesc)
-
-                'Return RTN_SUCCESS
-            Else
-                If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Document Number : " & sAPDocEntry, sFuncName)
-
             End If
 
             oDoc.CardCode = sCardCode
             oDoc.DocDate = CDate(sBatchPeriod)
-            ' oDoc.Comments = sBatchNo
+            oDoc.Comments = sBatchNo
             oDoc.JournalMemo = sFullBatchPeriod
-            oDoc.NumAtCard = sBatchNo
+            oDoc.NumAtCard = sNumAtCard
             If Not (odv(0)(10).ToString.Trim = String.Empty) Then
-                oDoc.Comments = odv(0)(10).ToString.Trim
+                oDoc.Comments = sBatchNo & "-" & odv(0)(10).ToString.Trim
             End If
 
             oDoc.UserFields.Fields.Item("U_AI_APARUploadName").Value = sFileName
@@ -573,7 +477,7 @@
                 Dim sItemCode As String = String.Empty
                 Dim sCostCenter As String = String.Empty
                 Dim sAcctCode As String = String.Empty
-                dReimbAmt = 0.0
+                Dim dReimbAmt As Double = 0.0
 
                 sAcctCode = odv(i)(4).ToString.Trim
                 sCostCenter = odv(i)(3).ToString.Trim()
@@ -622,14 +526,6 @@
 
                     oDoc.Lines.ItemCode = sItemCode
                     oDoc.Lines.UnitPrice = Math.Abs(dReimbAmt)
-
-                    If sAPDocEntry.ToString().Trim() <> String.Empty Then
-                        oDoc.Lines.BaseEntry = sAPDocEntry
-                        oDoc.Lines.BaseLine = i
-                        oDoc.Lines.BaseType = SAPbobsCOM.BoObjectTypes.oPurchaseInvoices
-                    End If
-                    
-                    oDoc.Lines.UserFields.Fields.Item("U_AI_InvRefNo").Value = odv(i)(0).ToString.Trim()
 
                     If Not (odv(i)(7).ToString.Trim() = String.Empty) Then
                         If (odv(i)(7).ToString.Trim = 0) Then
@@ -683,115 +579,6 @@
             Call WriteToLogFile_Debug(sErrDesc, sFuncName)
             If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Completed with ERROR", sFuncName)
             AddCreditMemoDoc = RTN_ERROR
-        End Try
-    End Function
-
-    Private Function AddCreditMemoDocInvBase(ByVal odv As DataView, ByVal sFileName As String, ByVal sBatchNo As String, ByVal sBatchPeriod As String, ByVal sFullBatchPeriod As String, ByRef sErrDesc As String) As Long
-        Dim sFuncName As String = "AddCreditMemoDoc"
-        Dim sCardCode As String = String.Empty
-        Dim sFullCardCode As String = String.Empty
-        Dim oDoc As SAPbobsCOM.Documents = Nothing
-        Dim iCount As Integer = 0
-        Dim bLineAdded As Boolean = False
-        Dim iRetcode, iErrCode As Integer
-        Dim sCardName As String = String.Empty
-        Dim sNumAtCard As String = String.Empty
-        Dim sSql As String = String.Empty
-        Dim dReimbAmt As Double = 0.0
-        Dim dTotal As Double = 0.0
-
-        Try
-            Console.WriteLine("Creating A/P Credit Memo..")
-
-            sSql = "SELECT DISTINCT ""U_AI_APARUploadName"" FROM ""ORPC"" WHERE IFNULL(""U_AI_APARUploadName"",'') <> ''"
-            If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("EXECUTING SQL :" & sSql, sFuncName)
-            dtFileName = ExecuteQueryReturnDataTable(sSql, p_oCompany.CompanyDB)
-
-            dtFileName.DefaultView.RowFilter = "U_AI_APARUploadName = '" & sFileName & "'"
-            If dtFileName.DefaultView.Count > 0 Then
-                sErrDesc = "Interface file ::" & sFileName & " has already been uploaded"
-                Call WriteToLogFile(sErrDesc, sFuncName)
-                Throw New ArgumentException(sErrDesc)
-            End If
-
-            If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Creating A/p Credit Memo Object", sFuncName)
-            oDoc = p_oCompany.GetBusinessObject(SAPbobsCOM.BoObjectTypes.oPurchaseCreditNotes)
-
-            sFullCardCode = odv(0)(2).ToString.Trim
-
-            If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("CardCode is " & sFullCardCode, sFuncName)
-            If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("CardCode Length is " & sFullCardCode.Length, sFuncName)
-
-            If sFullCardCode.Length > 15 Then
-                sCardCode = sFullCardCode.Substring(0, 15)
-            Else
-                sCardCode = sFullCardCode
-            End If
-
-            dtBP.DefaultView.RowFilter = "CardCode = '" & sCardCode & "'"
-            If dtBP.DefaultView.Count = 0 Then
-                If CheckBP(sFullCardCode, sCardCode, sCardName, "V", sErrDesc) <> RTN_SUCCESS Then Throw New ArgumentException(sErrDesc)
-            End If
-
-            sCardName = odv(0)(1).ToString.Trim
-
-            sSql = "SELECT DISTINCT ""NumAtCard"" FROM ""ORPC"" WHERE IFNULL(""NumAtCard"",'') <> '' AND ""CardCode"" = '" & sCardCode & "'"
-            If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("EXECUTING SQL :" & sSql, sFuncName)
-            dtVendRefNo = ExecuteQueryReturnDataTable(sSql, p_oCompany.CompanyDB)
-
-            If Not (sBatchNo = String.Empty) Then
-                dtVendRefNo.DefaultView.RowFilter = "NumAtCard = '" & sBatchNo & "'"
-                If dtVendRefNo.DefaultView.Count = 0 Then
-                    oDoc.NumAtCard = sNumAtCard
-                Else
-                    sErrDesc = "Vendor Ref No :: " & sNumAtCard & " already exist in SAP."
-                    Call WriteToLogFile(sErrDesc, sFuncName)
-                    Throw New ArgumentException(sErrDesc)
-                End If
-            End If
-
-            If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Creating A/p Credit Memo Object", sFuncName)
-            oDoc = p_oCompany.GetBusinessObject(SAPbobsCOM.BoObjectTypes.oPurchaseCreditNotes)
-
-            oDoc.CardCode = sCardCode
-            oDoc.DocDate = CDate(sBatchPeriod)
-            oDoc.JournalMemo = sFullBatchPeriod
-            oDoc.NumAtCard = sBatchNo
-            If Not (odv(0)(10).ToString.Trim = String.Empty) Then
-                oDoc.Comments = odv(0)(10).ToString.Trim
-            End If
-
-            oDoc.UserFields.Fields.Item("U_AI_APARUploadName").Value = sFileName
-            oDoc.UserFields.Fields.Item("U_AI_InvRefNo").Value = sCardName
-
-            For i As Integer = 0 To odv.Count - 1
-                Try
-                    If Not (odv(i)(5).ToString = String.Empty) Then
-                        dReimbAmt = odv(i)(5).ToString
-                    Else
-                        dReimbAmt = 0.0
-                    End If
-                Catch ex As Exception
-                    dReimbAmt = 0.0
-                End Try
-                dTotal = dTotal + dReimbAmt
-            Next
-
-            Dim sBaseEntry As String = String.Empty
-            sBaseEntry = GetBaseDocEntry(sCardCode, sFileName, dTotal, p_oCompany.CompanyDB)
-
-            If sBaseEntry = String.Empty Then
-
-            End If
-
-            If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Completed with SUCCESS", sFuncName)
-            AddCreditMemoDocInvBase = RTN_SUCCESS
-
-        Catch ex As Exception
-            sErrDesc = ex.Message.ToString
-            Call WriteToLogFile_Debug(sErrDesc, sFuncName)
-            If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Completed with ERROR", sFuncName)
-            AddCreditMemoDocInvBase = RTN_ERROR
         End Try
     End Function
 

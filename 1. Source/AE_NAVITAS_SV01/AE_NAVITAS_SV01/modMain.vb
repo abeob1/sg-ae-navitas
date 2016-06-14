@@ -41,6 +41,10 @@
 
         Public sCaiCancerCode As String
         Public sCaiCancerBankAct As String
+        Public sCaiaCancerGLCode As String
+
+        Public sTpaOthersGlCode As String
+        Public sTpaProcFeeGlCode As String
 
     End Structure
 

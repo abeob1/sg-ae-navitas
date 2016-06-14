@@ -43,6 +43,8 @@ Module modCommon
             oCompDef.sARStdRated = String.Empty
             oCompDef.sAPZeroRated = String.Empty
             oCompDef.sAPStdRated = String.Empty
+            oCompDef.sTpaOthersGlCode = String.Empty
+            oCompDef.sTpaProcFeeGlCode = String.Empty
 
             If Not String.IsNullOrEmpty(ConfigurationManager.AppSettings("Server")) Then
                 oCompDef.sServer = ConfigurationManager.AppSettings("Server")
@@ -155,6 +157,18 @@ Module modCommon
 
             If Not String.IsNullOrEmpty(ConfigurationManager.AppSettings("CaiaCancerBank")) Then
                 oCompDef.sCaiCancerBankAct = ConfigurationManager.AppSettings("CaiaCancerBank")
+            End If
+
+            If Not String.IsNullOrEmpty(ConfigurationManager.AppSettings("CaiaCancerGLCode")) Then
+                oCompDef.sCaiaCancerGLCode = ConfigurationManager.AppSettings("CaiaCancerGLCode")
+            End If
+
+            If Not String.IsNullOrEmpty(ConfigurationManager.AppSettings("TPAOthersGLAcct")) Then
+                oCompDef.sTpaOthersGlCode = ConfigurationManager.AppSettings("TPAOthersGLAcct")
+            End If
+
+            If Not String.IsNullOrEmpty(ConfigurationManager.AppSettings("TPAProcessFeeGLAcct")) Then
+                oCompDef.sTpaProcFeeGlCode = ConfigurationManager.AppSettings("TPAProcessFeeGLAcct")
             End If
 
             If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Completed with Success", sFunctName)
@@ -519,7 +533,7 @@ Module modCommon
 
                 If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("BP not exist in SAP", sFuncName)
 
-                oBP.CardCode = sBPCode
+                oBP.CardCode = sBPCode.ToUpper()
                 oBP.CardName = sBPName
 
                 If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Before cheking whether customer or vendor.", sFuncName)
@@ -761,7 +775,7 @@ Module modCommon
         Dim sCountCode As String = String.Empty
 
         sSql = "SELECT ""U_CheckBankCountry"" FROM ""@AI_TB01_COMPANYDATA"" WHERE ""Code"" = '" & sDBName & "'"
-        If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Executing SQL" & sSql, sFuncName)
+        If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Executing SQL", sFuncName)
 
         ods = ExecuteSQLQuery(sSql)
 
@@ -781,7 +795,7 @@ Module modCommon
         Dim sBnkCode As String = String.Empty
 
         sSql = "SELECT ""U_CheckBankCode"" FROM ""@AI_TB01_COMPANYDATA"" WHERE ""Code"" = '" & sDBName & "'"
-        If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Executing SQL" & sSql, sFuncName)
+        If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Executing SQL", sFuncName)
 
         oDs = ExecuteSQLQuery(sSql)
 
@@ -801,7 +815,7 @@ Module modCommon
         Dim sGLAcct As String = String.Empty
 
         sSql = "SELECT ""U_CheckGLAccount"" FROM ""@AI_TB01_COMPANYDATA"" WHERE ""Code"" = '" & sDBName & "'"
-        If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Executing SQL" & sSql, sFuncName)
+        If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Executing SQL", sFuncName)
 
         ods = ExecuteSQLQuery(sSql)
 
@@ -851,25 +865,25 @@ Module modCommon
 
         Return sHouseBnkAcct
     End Function
-#End Region
 
-#Region "Get Base Document DocEntry"
-    Public Function GetBaseDocEntry(ByVal sCardCode As String, ByVal sFileName As String, ByVal dReimbuseAmt As Double, ByVal sCompanyDB As String) As String
-        Dim sFuncName As String = "GetBaseDocEntry"
-        Dim sSql As String = String.Empty
+    Public Function GetHouseBankAccout_GIRO(ByVal sCardCode As String, ByVal sCompanyDB As String) As String
+        Dim sFuncName As String = "GetHouseBankAccout"
+        Dim sSql As String
         Dim ods As DataSet
-        Dim sBaseEntry As String = String.Empty
+        Dim sHouseBnkGLAcct As String = String.Empty
 
-        sSql = "SELECT ""DocEntry"" FROM ""OINV"" WHERE ""CardCode"" = '" & sCardCode & "' AND ""U_AI_APARUploadName"" = '" & sFileName & "' (""DocTotal"" - ""VatSum"") = " & dReimbuseAmt & ""
+        'sSql = "SELECT ""HousBnkAct"",""CardCode"" FROM ""OCRD"" WHERE ""CardCode"" =  '" & sCardCode & "' AND IFNULL(""HousBnkAct"",'') <> ''"
+        sSql = "SELECT B.""GLAccount"" FROM ""OCRD"" A INNER JOIN ""DSC1"" B ON B.""BankCode"" = A.""HouseBank"" AND B.""Country"" = A.""HousBnkCry"" AND B.""Branch"" = A.""HousBnkBrn"" " & _
+               " WHERE A.""CardCode"" =  '" & sCardCode & "' AND IFNULL(A.""HousBnkAct"",'') <> '' AND B.""Account"" = A.""HousBnkAct"" "
         If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Executing SQL" & sSql, sFuncName)
 
         ods = ExecuteTargetCompSQLQuery(sSql, sCompanyDB)
 
         If ods.Tables(0).Rows.Count > 0 Then
-            sBaseEntry = ods.Tables(0).Rows(0).Item("DocEntry").ToString
+            sHouseBnkGLAcct = ods.Tables(0).Rows(0).Item("GLAccount").ToString
         End If
 
-        Return sBaseEntry
+        Return sHouseBnkGLAcct
     End Function
 #End Region
 
@@ -880,7 +894,7 @@ Module modCommon
         Dim ods As DataSet
         Dim sTrnsAcct As String = String.Empty
 
-        sSql = "SELECT ""U_GIROGLAccount"" FROM ""@AI_TB01_COMPANYDATA"" WHERE ""Code"" = '" & sDBName & "'"
+        sSql = "SELECT ""U_GIROGLAccount"" FROM " & p_oCompDef.sSAPDBName & ".""@AI_TB01_COMPANYDATA"" WHERE ""Code"" = '" & sDBName & "'"
         If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Query : " & sSql, sFuncName)
 
         If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Executing SQL", sFuncName)
@@ -1003,81 +1017,6 @@ Module modCommon
         XLAppFx = Nothing
         If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Completed with SUCCESS", sFuncName)
 
-    End Function
-
-    Public Function CopyDocument(ByVal oBaseType As SAPbobsCOM.BoObjectTypes, _
-                     ByVal oBaseEntry As Integer, ByVal oTarType As SAPbobsCOM.BoObjectTypes, _
-                     ByRef oDICompany As SAPbobsCOM.Company, ByRef sErrDesc As String, ByRef IsDraft As Boolean) As Long
-
-        Dim lRetCode As Double
-        Dim sFuncName As String = String.Empty
-
-        Try
-            sFuncName = "CopyDocument()"
-            If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Starting Function", sFuncName)
-
-
-            Dim oBaseDoc As SAPbobsCOM.Documents = _
-                oDICompany.GetBusinessObject(oBaseType)
-            If oBaseDoc.GetByKey(oBaseEntry) Then
-                'base document found, copy to target doc
-                Dim oTarDoc As SAPbobsCOM.Documents = _
-                    oDICompany.GetBusinessObject(oTarType)
-
-                If IsDraft = False Then
-                    oTarDoc = oDICompany.GetBusinessObject(oTarType)
-                Else
-                    oTarDoc = oDICompany.GetBusinessObject(SAPbobsCOM.BoObjectTypes.oDrafts)
-                    oTarDoc.DocObjectCode = oTarType
-                End If
-
-
-                'todo: copy the cardcode, docduedate, lines
-                oTarDoc.CardCode = oBaseDoc.CardCode
-                oTarDoc.DocDueDate = oBaseDoc.DocDueDate
-                oTarDoc.DocDate = oBaseDoc.DocDate
-                oTarDoc.TaxDate = oBaseDoc.TaxDate
-                oTarDoc.NumAtCard = oBaseDoc.NumAtCard
-
-                oTarDoc.UserFields.Fields.Item("U_AI_APARUploadName").Value = oBaseDoc.UserFields.Fields.Item("U_AI_APARUploadName").Value
-                oTarDoc.UserFields.Fields.Item("U_AI_InvRefNo").Value = oBaseDoc.UserFields.Fields.Item("U_AI_InvRefNo").Value
-
-
-                'copy the lines
-                Dim count As Integer = oBaseDoc.Lines.Count - 1
-                Dim oTargetLines As SAPbobsCOM.Document_Lines = oTarDoc.Lines
-                For i As Integer = 0 To count
-                    If i <> 0 Then
-                        oTargetLines.Add()
-                    End If
-                    oTargetLines.BaseType = oBaseType
-                    oTargetLines.BaseEntry = oBaseEntry
-                    oTargetLines.BaseLine = i
-                Next
-
-                lRetCode = oTarDoc.Add()
-
-                If lRetCode <> 0 Then
-
-                    sErrDesc = oDICompany.GetLastErrorDescription
-                    Call WriteToLogFile(sErrDesc, sFuncName)
-                    If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Completed with ERROR", sFuncName)
-                    Return RTN_ERROR
-                Else
-                    If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Completed with SUCCESS ", sFuncName)
-                    Return RTN_SUCCESS
-                End If
-
-            Else
-                If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Base Document Not Found ", sFuncName)
-                Return RTN_SUCCESS
-            End If
-        Catch ex As Exception
-            sErrDesc = ex.Message
-            Call WriteToLogFile(sErrDesc, sFuncName)
-            If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Completed with ERROR", sFuncName)
-            Return RTN_ERROR
-        End Try
     End Function
 
 
