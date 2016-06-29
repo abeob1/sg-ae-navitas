@@ -330,7 +330,7 @@
 
                 If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("AMT IS. " & dTransAmount & "Line Number. " & i, sFuncName)
 
-                dTotalAmt = dTotalAmt + dTransAmount
+                dTotalAmt = Math.Round(dTotalAmt, 2) + Math.Round(dTransAmount, 2)
 
                 oPayments.AccountPayments.GrossAmount = dTransAmount
 

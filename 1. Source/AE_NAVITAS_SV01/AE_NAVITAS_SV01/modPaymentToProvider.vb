@@ -296,11 +296,11 @@
                         dReimbCol = 0.0
                     End If
                     
-                    dTotalAmt = dTotalAmt + dReimbCol
+                    dTotalAmt = Math.Round(dTotalAmt, 2) + Math.Round(dReimbCol, 2)
                 End If
             Next
 
-            dTotPaymentAmt = dTotalAmt
+            dTotPaymentAmt = Math.Round(dTotalAmt, 2)
 
             If dTotPaymentAmt > 0.0 Then
                 Dim sClincCode As String
@@ -411,10 +411,10 @@
                             End If
                             If dTotalAmt > dTransAmt Then
                                 oPayments.Invoices.SumApplied = dTransAmt
-                                dTotalAmt = dTotalAmt - dTransAmt
+                                dTotalAmt = Math.Round((dTotalAmt - dTransAmt), 2)
                             Else
                                 oPayments.Invoices.SumApplied = dTotalAmt
-                                dTotalAmt = dTotalAmt - dTotalAmt
+                                dTotalAmt = Math.Round((dTotalAmt - dTotalAmt), 2)
                             End If
                             If Not (odv(0)(2).ToString.Trim = String.Empty) Then
                                 oPayments.Invoices.DistributionRule = odv(0)(2).ToString.Trim
@@ -528,8 +528,8 @@
                         dReimbCol = 0.0
                     End If
 
-                    dTotalAmt = dReimbCol
-                    dTotPaymentAmt = dReimbCol
+                    dTotalAmt = Math.Round(dReimbCol, 2)
+                    dTotPaymentAmt = Math.Round(dReimbCol, 2)
 
                     If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Starting Function", sFuncName)
 
@@ -670,10 +670,10 @@
                                 End If
                                 If dTotalAmt > dTransAmt Then
                                     oPayments.Invoices.SumApplied = dTransAmt
-                                    dTotalAmt = dTotalAmt - dTransAmt
+                                    dTotalAmt = Math.Round((dTotalAmt - dTransAmt), 2)
                                 Else
                                     oPayments.Invoices.SumApplied = dTotalAmt
-                                    dTotalAmt = dTotalAmt - dTotalAmt
+                                    dTotalAmt = Math.Round((dTotalAmt - dTotalAmt), 2)
                                 End If
 
                                 If Not (odv(i)(2).ToString.Trim = String.Empty) Then
@@ -876,7 +876,7 @@
                         Else
                             dReimbCol = 0.0
                         End If
-                        dTotalAmt = dTotalAmt + dReimbCol
+                        dTotalAmt = Math.Round(dTotalAmt, 2) + Math.Round(dReimbCol, 2)
                     End If
                 Next
 
