@@ -164,9 +164,16 @@
                     If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("CardCode Length is " & sFullCardCode.Length, sFuncName)
 
                     If sFullCardCode.Length > 15 Then
-                        sCardCode = sFullCardCode.Substring(0, 15)
+                        sCardCode = sFullCardCode.Substring(0, 15).ToUpper()
                     Else
-                        sCardCode = sFullCardCode
+                        sCardCode = sFullCardCode.ToUpper()
+                    End If
+
+                    sSql = "SELECT ""CardCode"" FROM " & p_oCompany.CompanyDB & ".""OCRD"" WHERE UPPER(""CardCode"") = '" & sCardCode & "'"
+                    Dim oDs As DataSet
+                    oDs = ExecuteSQLQuery(sSql)
+                    If oDs.Tables(0).Rows.Count > 0 Then
+                        sCardCode = oDs.Tables(0).Rows(0).Item("CardCode").ToString
                     End If
 
                     sAcctCode = odv(i)(5).ToString.Trim
@@ -705,6 +712,13 @@
                         sCardCode = sFullCardCode.Substring(0, 15).ToUpper()
                     Else
                         sCardCode = sFullCardCode.ToUpper()
+                    End If
+
+                    sSql = "SELECT ""CardCode"" FROM " & p_oCompany.CompanyDB & ".""OCRD"" WHERE UPPER(""CardCode"") = '" & sCardCode & "'"
+                    Dim oDs As DataSet
+                    oDs = ExecuteSQLQuery(sSql)
+                    If oDs.Tables(0).Rows.Count > 0 Then
+                        sCardCode = oDs.Tables(0).Rows(0).Item("CardCode").ToString
                     End If
 
                     sAcctCode = odv(i)(5).ToString.Trim

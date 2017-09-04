@@ -242,6 +242,7 @@
         Dim sCardName As String = String.Empty
         Dim oRecordSet As SAPbobsCOM.Recordset
         Dim oRecordSet1 As SAPbobsCOM.Recordset
+        Dim sSql As String = String.Empty
 
         Try
 
@@ -262,6 +263,13 @@
                 sCardCode = sFullCardCode.ToUpper()
             End If
 
+            sSql = "SELECT ""CardCode"" FROM " & p_oCompany.CompanyDB & ".""OCRD"" WHERE UPPER(""CardCode"") = '" & sCardCode & "'"
+            Dim oDs As DataSet
+            oDs = ExecuteSQLQuery(sSql)
+            If oDs.Tables(0).Rows.Count > 0 Then
+                sCardCode = oDs.Tables(0).Rows(0).Item("CardCode").ToString
+            End If
+
             sCardName = odv(0)(0).ToString.Trim()
             
             Dim sCardCode_Upper As String = sCardCode.ToUpper()
@@ -273,8 +281,8 @@
                 If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Calling Create_OutgoingPayment", sFuncName)
                 If Create_OutgoingPayment(odv, sFileName, sDBCode, sBatchNo, sBatchPeriod, "GIRO", sFullBatchPeriod, sErrDesc) <> RTN_SUCCESS Then Throw New ArgumentException(sErrDesc)
                 Return RTN_SUCCESS
-            Else
-                sCardCode = dtBP.DefaultView.Item(0)(1).ToString().Trim()
+                'Else
+                '    sCardCode = dtBP.DefaultView.Item(0)(1).ToString().Trim()
             End If
 
             oPayments.CardCode = sCardCode
@@ -306,7 +314,6 @@
                 Dim sClincCode As String
                 sClincCode = odv(0)(1).ToString
 
-                Dim sSql As String
                 Dim sBaseRef As String = String.Empty
                 Dim dTransAmt As Double = 0.0
                 Dim sTransType As String = String.Empty
@@ -528,8 +535,8 @@
                         dReimbCol = 0.0
                     End If
 
-                    dTotalAmt = Math.Round(dReimbCol, 2)
-                    dTotPaymentAmt = Math.Round(dReimbCol, 2)
+                    dTotalAmt = dReimbCol
+                    dTotPaymentAmt = dReimbCol
 
                     If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Starting Function", sFuncName)
 
@@ -547,6 +554,13 @@
                         sCardCode = sFullCardCode.ToUpper()
                     End If
 
+                    sSql = "SELECT ""CardCode"" FROM " & p_oCompany.CompanyDB & ".""OCRD"" WHERE UPPER(""CardCode"") = '" & sCardCode & "'"
+                    Dim oDs As DataSet
+                    oDs = ExecuteSQLQuery(sSql)
+                    If oDs.Tables(0).Rows.Count > 0 Then
+                        sCardCode = oDs.Tables(0).Rows(0).Item("CardCode").ToString
+                    End If
+
                     sCardName = odv(0)(0).ToString.Trim()
                     
                     Dim sCardCode_Upper As String = sCardCode.ToUpper()
@@ -558,8 +572,8 @@
                         If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Calling Create_OutgoingPayment", sFuncName)
                         If Create_OutgoingPayment(odv, sFileName, sDBCode, sBatchNo, sBatchPeriod, "CHEQUE", sFullBatchPeriod, sErrDesc) <> RTN_SUCCESS Then Throw New ArgumentException(sErrDesc)
                         Return RTN_SUCCESS
-                    Else
-                        sCardCode = dtBP.DefaultView.Item(0)(1).ToString().Trim()
+                        'Else
+                        '    sCardCode = dtBP.DefaultView.Item(0)(1).ToString().Trim()
                     End If
 
                     oPayments.CardCode = sCardCode 'odv(i)(1).ToString.Trim
@@ -670,10 +684,10 @@
                                 End If
                                 If dTotalAmt > dTransAmt Then
                                     oPayments.Invoices.SumApplied = dTransAmt
-                                    dTotalAmt = Math.Round((dTotalAmt - dTransAmt), 2)
+                                    dTotalAmt = dTotalAmt - dTransAmt
                                 Else
                                     oPayments.Invoices.SumApplied = dTotalAmt
-                                    dTotalAmt = Math.Round((dTotalAmt - dTotalAmt), 2)
+                                    dTotalAmt = dTotalAmt - dTotalAmt
                                 End If
 
                                 If Not (odv(i)(2).ToString.Trim = String.Empty) Then
@@ -772,6 +786,8 @@
         Dim dReimbCol As Double = 0.0
         Dim dTotalAmt As Double = 0.0
         Dim sTrnsAcct As String = String.Empty
+        Dim sSql As String = String.Empty
+
         Try
             sFuncName = "Create_OutgoingPayment"
             If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Starting Function", sFuncName)
@@ -784,9 +800,16 @@
             If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("CardCode length is " & sFullCardcode.Length, sFuncName)
 
             If sFullCardcode.Length > 15 Then
-                sCardCode = sFullCardcode.Substring(0, 15)
+                sCardCode = sFullCardcode.Substring(0, 15).ToUpper()
             Else
-                sCardCode = sFullCardcode
+                sCardCode = sFullCardcode.ToUpper()
+            End If
+
+            sSql = "SELECT ""CardCode"" FROM " & p_oCompany.CompanyDB & ".""OCRD"" WHERE UPPER(""CardCode"") = '" & sCardCode & "'"
+            Dim oDs As DataSet
+            oDs = ExecuteSQLQuery(sSql)
+            If oDs.Tables(0).Rows.Count > 0 Then
+                sCardCode = oDs.Tables(0).Rows(0).Item("CardCode").ToString
             End If
 
             sCardName = oDV(0)(0).ToString.Trim()
@@ -876,7 +899,7 @@
                         Else
                             dReimbCol = 0.0
                         End If
-                        dTotalAmt = Math.Round(dTotalAmt, 2) + Math.Round(dReimbCol, 2)
+                        dTotalAmt = dTotalAmt + dReimbCol
                     End If
                 Next
 

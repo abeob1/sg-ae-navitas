@@ -132,6 +132,10 @@
 
                     sCardCode = oDTInvGrpData.Rows(intRow).Item(0).ToString.Trim()
 
+                    If sCardCode.ToUpper() = "VHONG WHYE" Then
+                        MsgBox("VHONG WHYE")
+                    End If
+
                     If p_iDebugMode = DEBUG_ON Then Call WriteToLogFile_Debug("Customer Code Before Filtering. CardCode : " & sCardCode, sFuncName)
                     odvInvView.RowFilter = "F3 = '" & sCardCode & "'"
 
@@ -244,6 +248,13 @@
                 sCardCode = sFullCardCode.Substring(0, 15).ToUpper()
             Else
                 sCardCode = sFullCardCode.ToUpper()
+            End If
+
+            sSql = "SELECT ""CardCode"" FROM " & p_oCompany.CompanyDB & ".""OCRD"" WHERE UPPER(""CardCode"") = '" & sCardCode & "'"
+            Dim oDs As DataSet
+            oDs = ExecuteSQLQuery(sSql)
+            If oDs.Tables(0).Rows.Count > 0 Then
+                sCardCode = oDs.Tables(0).Rows(0).Item("CardCode").ToString
             End If
 
             sCardName = odv(0)(1).ToString.Trim
@@ -431,6 +442,13 @@
                 sCardCode = sFullCardCode.Substring(0, 15).ToUpper()
             Else
                 sCardCode = sFullCardCode.ToUpper()
+            End If
+
+            sSql = "SELECT ""CardCode"" FROM " & p_oCompany.CompanyDB & ".""OCRD"" WHERE UPPER(""CardCode"") = '" & sCardCode & "'"
+            Dim oDs As DataSet
+            oDs = ExecuteSQLQuery(sSql)
+            If oDs.Tables(0).Rows.Count > 0 Then
+                sCardCode = oDs.Tables(0).Rows(0).Item("CardCode").ToString
             End If
 
             sCardName = odv(0)(1).ToString.Trim
